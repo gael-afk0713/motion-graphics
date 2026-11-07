@@ -1,20 +1,49 @@
 import { Easing, interpolate } from "remotion";
 import * as THREE from "three";
 
-// All values in absolute composition frames @30fps (16s = 480 frames).
+// All values in absolute composition frames @30fps.
 export const FPS = 30;
-export const DURATION = 16 * FPS;
+
+// Narration per scene: speech start/end (seconds) inside each mp3, measured
+// with ffmpeg silencedetect (adaptive loudnorm threshold).
+export const NARRATION = [
+  { file: "cena1.mp3", start: 0.062, end: 2.563 },
+  { file: "cena2.mp3", start: 0.0, end: 4.939 },
+  { file: "cena3.mp3", start: 0.0, end: 3.2 },
+  { file: "cena4.mp3", start: 0.0, end: 3.989 },
+  { file: "cena5.mp3", start: 0.164, end: 3.833 },
+  { file: "cena6.mp3", start: 0.054, end: 1.763 },
+] as const;
+
+export const TAIL_SECONDS = 0.3; // breathing room after each line
+
+// Scene length = speech length + 0.3s
+export const SCENE_DURATIONS = NARRATION.map(
+  (n) => Math.ceil((n.end - n.start) * FPS) + Math.round(TAIL_SECONDS * FPS),
+);
+export const SCENE_STARTS = SCENE_DURATIONS.map((_, i) =>
+  SCENE_DURATIONS.slice(0, i).reduce((a, b) => a + b, 0),
+);
+export const DURATION = SCENE_DURATIONS.reduce((a, b) => a + b, 0);
+
+// Absolute frame of a moment `sec` seconds into scene `i`'s (trimmed) speech
+export const beat = (i: number, sec: number) =>
+  SCENE_STARTS[i] + Math.round(sec * FPS);
 
 export const CUT = {
-  approachEnd: 2 * FPS, // 60
-  spinEnd: 6 * FPS, // 180
-  orbitEnd: 10 * FPS, // 300
-  compareEnd: 13 * FPS, // 390
-  retroEnd: 15 * FPS, // 450
+  approachEnd: SCENE_STARTS[1],
+  spinEnd: SCENE_STARTS[2],
+  orbitEnd: SCENE_STARTS[3],
+  compareEnd: SCENE_STARTS[4],
+  retroEnd: SCENE_STARTS[5],
 };
 
-export const SPIN_COUNTER = { start: 70, end: 170 }; // 0 -> 243 days
-export const ORBIT = { start: 205, end: 292 }; // 0 -> 225 days, one full orbit
+// Counter 0 -> 243 while "Vênus leva 243 dias" is spoken
+export const SPIN_COUNTER = { start: beat(1, 0.7), end: beat(1, 2.85) };
+// One full orbit (0 -> 225 days) across the scene-3 line, landing on "Sol"
+export const ORBIT = { start: beat(2, 0.45), end: beat(2, 3.2) };
+// Retrograde arrow appears with the first phrase of scene 5
+export const RETRO_ARROW_START = beat(4, 0.05);
 
 export const ORBIT_RADIUS = 30;
 export const VENUS_RADIUS = 3;
@@ -88,7 +117,7 @@ export const cameraState = (f: number) => {
   const V = venusPosition(f);
 
   // Scenes 1–2: fast fly-in, then a gentle drift
-  const approachDist = interpolate(f, [0, 56, CUT.spinEnd], [330, 17.5, 16], {
+  const approachDist = interpolate(f, [0, 52, CUT.spinEnd], [330, 17.5, 16], {
     ...clamp,
     easing: Easing.bezier(0.3, 0.05, 0.15, 1),
   });
@@ -116,7 +145,7 @@ export const cameraState = (f: number) => {
     new THREE.Vector3(0, interpolate(f, [CUT.retroEnd, DURATION], [0.2, 1.6], clamp), 0),
   );
 
-  const kOut = interpolate(f, [CUT.spinEnd - 2, CUT.spinEnd + 46], [0, 1], {
+  const kOut = interpolate(f, [CUT.spinEnd - 2, CUT.spinEnd + 34], [0, 1], {
     ...clamp,
     easing: Easing.bezier(0.65, 0, 0.35, 1),
   });

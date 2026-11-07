@@ -10,6 +10,7 @@ import {
   ORBIT,
   ORBIT_RADIUS,
   orbitProgress,
+  RETRO_ARROW_START,
   venusPosition,
   VENUS_RADIUS,
   venusSpin,
@@ -294,7 +295,7 @@ const OrbitPath: React.FC<{ frame: number }> = ({ frame }) => {
 
 // Curved arrow around Venus' equator, pointing clockwise (retrograde)
 const RetroArrow: React.FC<{ frame: number }> = ({ frame }) => {
-  const start = CUT.compareEnd + 8;
+  const start = RETRO_ARROW_START;
   const grow = interpolate(frame, [start, start + 22], [0.05, 1], {
     ...clamp,
     easing: (t) => 1 - Math.pow(1 - t, 3),

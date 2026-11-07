@@ -1,8 +1,16 @@
+import { Audio } from "@remotion/media";
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
 import React from "react";
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  interpolate,
+  Sequence,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import {
   SceneCompare,
   SceneIntro,
@@ -12,7 +20,7 @@ import {
   SceneSpin,
 } from "./Overlays";
 import { SpaceScene } from "./SpaceScene";
-import { CUT } from "./timeline";
+import { CUT, NARRATION, SCENE_DURATIONS, SCENE_STARTS } from "./timeline";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const T = 8; // fast transitions, centred on each cut
@@ -46,41 +54,59 @@ const Grade: React.FC = () => {
 
 export const VenusVideo: React.FC = () => {
   const { fps } = useVideoConfig();
-  // Sequence starts (absolute) so scenes can sync with the 3D timeline
-  const s2 = 2 * fps - T / 2;
-  const s3 = 6 * fps - T / 2;
+  const [d1, d2, d3, d4, d5, d6] = SCENE_DURATIONS;
+  // Each text sequence starts T/2 before its cut (except the first),
+  // so the speech starts at local frame T/2.
+  const seqStart = (i: number) => (i === 0 ? 0 : SCENE_STARTS[i] - T / 2);
+  const speechAt = (i: number) => SCENE_STARTS[i] - seqStart(i);
   return (
     <AbsoluteFill style={{ backgroundColor: "#02020a" }}>
       <SpaceScene />
       <Grade />
       <TransitionSeries>
-        <TransitionSeries.Sequence name="Intro" durationInFrames={2 * fps + T / 2}>
-          <SceneIntro />
+        <TransitionSeries.Sequence name="Intro" durationInFrames={d1 + T / 2}>
+          <SceneIntro speechAt={speechAt(0)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
-        <TransitionSeries.Sequence name="Rotação" durationInFrames={4 * fps + T}>
-          <SceneSpin startFrame={s2} />
+        <TransitionSeries.Sequence name="Rotação" durationInFrames={d2 + T}>
+          <SceneSpin startFrame={seqStart(1)} speechAt={speechAt(1)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition
           presentation={slide({ direction: "from-right" })}
           timing={linearTiming({ durationInFrames: T })}
         />
-        <TransitionSeries.Sequence name="Órbita" durationInFrames={4 * fps + T}>
-          <SceneOrbit startFrame={s3} />
+        <TransitionSeries.Sequence name="Órbita" durationInFrames={d3 + T}>
+          <SceneOrbit startFrame={seqStart(2)} speechAt={speechAt(2)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
-        <TransitionSeries.Sequence name="Comparação" durationInFrames={3 * fps + T}>
-          <SceneCompare />
+        <TransitionSeries.Sequence name="Comparação" durationInFrames={d4 + T}>
+          <SceneCompare speechAt={speechAt(3)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
-        <TransitionSeries.Sequence name="Retrógrado" durationInFrames={2 * fps + T}>
-          <SceneRetro />
+        <TransitionSeries.Sequence name="Retrógrado" durationInFrames={d5 + T}>
+          <SceneRetro speechAt={speechAt(4)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
-        <TransitionSeries.Sequence name="CTA" durationInFrames={1 * fps + T / 2}>
-          <SceneOutro />
+        <TransitionSeries.Sequence name="CTA" durationInFrames={d6 + T / 2}>
+          <SceneOutro speechAt={speechAt(5)} />
         </TransitionSeries.Sequence>
       </TransitionSeries>
+      {/* Narration: one clip per scene, leading silence trimmed, ends at the cut */}
+      {NARRATION.map((n, i) => (
+        <Sequence
+          key={n.file}
+          name={`Narração ${i + 1}`}
+          from={SCENE_STARTS[i]}
+          durationInFrames={SCENE_DURATIONS[i]}
+          layout="none"
+        >
+          <Audio
+            src={staticFile(n.file)}
+            trimBefore={Math.floor(n.start * fps)}
+            durationInFrames={SCENE_DURATIONS[i]}
+          />
+        </Sequence>
+      ))}
     </AbsoluteFill>
   );
 };
