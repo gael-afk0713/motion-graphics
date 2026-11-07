@@ -1,5 +1,6 @@
 import { Easing, interpolate } from "remotion";
 import * as THREE from "three";
+import { segmentEnd, spokenFrame } from "./captions";
 
 // All values in absolute composition frames @30fps.
 export const FPS = 30;
@@ -40,13 +41,6 @@ export const speechOffset = (i: number, fileSec: number) =>
 export const beat = (i: number, fileSec: number) =>
   SCENE_STARTS[i] + speechOffset(i, fileSec);
 
-// Frames (from scene start) at which each text part appears
-export const textParts = (i: number): number[] => {
-  const n = NARRATION[i];
-  const parts = [speechOffset(i, n.start) - TEXT_LEAD_FRAMES];
-  if (n.pause) parts.push(speechOffset(i, n.pause[1]) - TEXT_LEAD_FRAMES);
-  return parts;
-};
 
 export const CUT = {
   approachEnd: SCENE_STARTS[1],
@@ -57,9 +51,9 @@ export const CUT = {
 };
 
 // Counter 0 -> 243 while "Vênus leva 243 dias" is spoken
-export const SPIN_COUNTER = { start: beat(1, 0.7), end: beat(1, 2.85) };
+export const SPIN_COUNTER = { start: spokenFrame("spin", "243"), end: spokenFrame("spin", "DIAS") };
 // One full orbit (0 -> 225 days) across the scene-3 line, landing on "Sol"
-export const ORBIT = { start: beat(2, 0.45), end: beat(2, 3.2) };
+export const ORBIT = { start: spokenFrame("orbit", "225"), end: segmentEnd("orbit", 0) };
 // Retrograde arrow appears with the first phrase of scene 5
 export const RETRO_ARROW_START = beat(4, NARRATION[4].start) - TEXT_LEAD_FRAMES;
 

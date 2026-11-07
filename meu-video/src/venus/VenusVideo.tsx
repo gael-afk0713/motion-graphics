@@ -8,14 +8,7 @@ import {
   staticFile,
   useCurrentFrame,
 } from "remotion";
-import {
-  SceneCompare,
-  SceneIntro,
-  SceneOrbit,
-  SceneOutro,
-  SceneRetro,
-  SceneSpin,
-} from "./Overlays";
+import { Captions, SceneCompare, SceneOrbit, SceneOutro, SceneSpin } from "./Overlays";
 import { quickOut } from "./QuickOut";
 import { SpaceScene } from "./SpaceScene";
 import {
@@ -23,7 +16,6 @@ import {
   NARRATION,
   SCENE_DURATIONS,
   SCENE_STARTS,
-  textParts,
   trimFrames,
 } from "./timeline";
 
@@ -62,40 +54,39 @@ const Grade: React.FC = () => {
 
 export const VenusVideo: React.FC = () => {
   const [d1, d2, d3, d4, d5, d6] = SCENE_DURATIONS;
-  // Each text sequence starts PRE frames before its cut (except the first)
+  // Each scene sequence starts PRE frames before its cut (except the first)
   const seqStart = (i: number) => (i === 0 ? 0 : SCENE_STARTS[i] - PRE);
-  // Text parts in each sequence's local frames, ahead of the measured speech
-  const parts = (i: number) =>
-    textParts(i).map((f) => f + SCENE_STARTS[i] - seqStart(i));
   return (
     <AbsoluteFill style={{ backgroundColor: "#02020a" }}>
       <SpaceScene />
       <Grade />
       <TransitionSeries>
         <TransitionSeries.Sequence name="Intro" durationInFrames={d1 + T - PRE}>
-          <SceneIntro parts={parts(0)} />
+          <AbsoluteFill />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Rotação" durationInFrames={d2 + T}>
-          <SceneSpin startFrame={seqStart(1)} parts={parts(1)} />
+          <SceneSpin offset={seqStart(1)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Órbita" durationInFrames={d3 + T}>
-          <SceneOrbit startFrame={seqStart(2)} parts={parts(2)} />
+          <SceneOrbit offset={seqStart(2)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Comparação" durationInFrames={d4 + T}>
-          <SceneCompare parts={parts(3)} />
+          <SceneCompare offset={seqStart(3)} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Retrógrado" durationInFrames={d5 + T}>
-          <SceneRetro parts={parts(4)} />
+          <AbsoluteFill />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="CTA" durationInFrames={d6 + PRE}>
-          <SceneOutro parts={parts(5)} />
+          <SceneOutro offset={seqStart(5)} />
         </TransitionSeries.Sequence>
       </TransitionSeries>
+      {/* Captions run on absolute video time, word by word with the voice */}
+      <Captions />
       {/* Narration: one clip per scene, leading silence trimmed, ends at the cut */}
       {NARRATION.map((n, i) => (
         <Sequence

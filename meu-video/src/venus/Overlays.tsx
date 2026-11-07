@@ -9,6 +9,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import { blockStart, blockWords, CAPTIONS, spokenFrame } from "./captions";
 import { ORBIT, SPIN_COUNTER } from "./timeline";
 
 // Montserrat variable font (bundled locally in public/fonts)
@@ -38,35 +39,28 @@ const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const textShadow =
   "0 4px 0 rgba(0,0,0,0.55), 0 10px 40px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)";
 
-// Headline: words wrapped in *asterisks* are keywords rendered in yellow.
-// " | " splits the text into parts; part k pops in at frame parts[k]
-// (the start of each spoken phrase, measured from the narration).
-export const Headline: React.FC<{
-  text: string;
-  parts: number[];
-  fontSize?: number;
-  top?: number;
-  center?: boolean;
-}> = ({ text, parts, fontSize = 104, top = SAFE_Y + 40, center = false }) => {
+const Caption: React.FC<{ index: number }> = ({ index }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const words: { w: string; start: number }[] = [];
-  text.split(" | ").forEach((chunk, p) => {
-    chunk.split(" ").forEach((w, k) => {
-      words.push({ w, start: parts[Math.min(p, parts.length - 1)] + k * 1.5 });
-    });
-  });
+  const block = CAPTIONS[index];
+  const start = blockStart(block);
+  const next = index + 1 < CAPTIONS.length ? blockStart(CAPTIONS[index + 1]) : Infinity;
+  if (frame < start || frame >= next) return null;
+  // Old caption is gone exactly when the next one's first word pops in
+  const out = Number.isFinite(next) ? interpolate(frame, [next - 3, next], [1, 0], clamp) : 1;
+  const { fontSize, center } = block;
   return (
     <div
       style={{
         position: "absolute",
-        top: center ? 0 : top,
+        top: center ? 0 : SAFE_Y + 40,
         bottom: center ? 0 : undefined,
         left: SIDE,
         right: SIDE,
         display: "flex",
         flexDirection: "column",
         justifyContent: center ? "center" : "flex-start",
+        opacity: out,
       }}
     >
       <div
@@ -85,29 +79,32 @@ export const Headline: React.FC<{
           columnGap: fontSize * 0.26,
         }}
       >
-        {words.map(({ w, start }, i) => {
-          const isKey = w.includes("*");
-          const clean = w.replace(/\*/g, "");
-          const s = spring({
-            frame: frame - start,
-            fps,
-            config: { damping: 14, stiffness: 180, mass: 0.6 },
-          });
+        {blockWords(block).map((w, i) => {
+          // Words not yet spoken are invisible but keep their place
+          const s =
+            frame < w.appearAt
+              ? 0
+              : spring({
+                  // +1: already visible on its first frame (LEAD frames before the voice)
+                  frame: frame - w.appearAt + 1,
+                  fps,
+                  config: { damping: 14, stiffness: 200, mass: 0.5 },
+                });
           return (
             <span
               key={i}
               style={{
                 display: "inline-block",
-                color: isKey ? YELLOW : "white",
-                opacity: interpolate(s, [0, 0.4], [0, 1], clamp),
-                scale: interpolate(s, [0, 1], [isKey ? 1.6 : 0.6, 1]),
-                translate: `0px ${interpolate(s, [0, 1], [40, 0])}px`,
-                textShadow: isKey
+                color: w.key ? YELLOW : "white",
+                opacity: interpolate(s, [0, 0.3], [0, 1], clamp),
+                scale: interpolate(s, [0, 1], [w.key ? 1.25 : 0.7, 1]),
+                translate: `0px ${interpolate(s, [0, 1], [30, 0])}px`,
+                textShadow: w.key
                   ? `${textShadow}, 0 0 30px rgba(255,190,40,0.55)`
                   : textShadow,
               }}
             >
-              {clean}
+              {w.text}
             </span>
           );
         })}
@@ -115,6 +112,15 @@ export const Headline: React.FC<{
     </div>
   );
 };
+
+/** All captions, on absolute video time (independent of scene cuts). */
+export const Captions: React.FC = () => (
+  <AbsoluteFill>
+    {CAPTIONS.map((c, i) => (
+      <Caption key={c.id} index={i} />
+    ))}
+  </AbsoluteFill>
+);
 
 const Counter: React.FC<{
   value: number;
@@ -193,119 +199,95 @@ const Counter: React.FC<{
   );
 };
 
-/** Local frames at which each text part appears (already ahead of the voice). */
-type SceneProps = { parts: number[] };
+/** `offset` = absolute frame of the scene sequence's local frame 0 */
+type SceneProps = { offset: number };
 
-export const SceneIntro: React.FC<SceneProps> = ({ parts }) => (
-  <AbsoluteFill>
-    <Headline
-      text="Esse planeta | *QUEBRA* as regras"
-      fontSize={118}
-      parts={parts}
-    />
-  </AbsoluteFill>
-);
-
-export const SceneSpin: React.FC<SceneProps & { startFrame: number }> = ({
-  startFrame,
-  parts,
-}) => {
-  const frame = useCurrentFrame();
-  const abs = frame + startFrame;
+// Counter climbs while "243" is being said and lands on 243 at "dias"
+export const SceneSpin: React.FC<SceneProps> = ({ offset }) => {
+  const abs = useCurrentFrame() + offset;
   const p = interpolate(abs, [SPIN_COUNTER.start, SPIN_COUNTER.end], [0, 1], {
     ...clamp,
-    easing: Easing.bezier(0.4, 0, 0.3, 1),
+    easing: Easing.bezier(0.3, 0, 0.4, 1),
   });
   return (
     <AbsoluteFill>
-      <Headline
-        text="Vênus leva *243* *DIAS* | para girar uma vez"
-        fontSize={100}
-        parts={parts}
-      />
       <Counter
         value={Math.round(p * 243)}
         label="1 ROTAÇÃO"
         progress={p}
         align="right"
-        appear={SPIN_COUNTER.start - startFrame - 8}
+        appear={SPIN_COUNTER.start - offset - 6}
       />
     </AbsoluteFill>
   );
 };
 
-export const SceneOrbit: React.FC<SceneProps & { startFrame: number }> = ({
-  startFrame,
-  parts,
-}) => {
-  const frame = useCurrentFrame();
-  const abs = frame + startFrame;
+export const SceneOrbit: React.FC<SceneProps> = ({ offset }) => {
+  const abs = useCurrentFrame() + offset;
   const p = interpolate(abs, [ORBIT.start, ORBIT.end], [0, 1], {
     ...clamp,
     easing: Easing.bezier(0.45, 0, 0.55, 1),
   });
   return (
     <AbsoluteFill>
-      <Headline
-        text="Mas só *225* *dias* para dar a volta no *Sol*"
-        fontSize={100}
-        parts={parts}
-      />
       <Counter
         value={Math.round(p * 225)}
         label="1 VOLTA NO SOL"
         progress={p}
         align="left"
-        appear={ORBIT.start - startFrame - 10}
+        appear={ORBIT.start - offset - 6}
       />
     </AbsoluteFill>
   );
 };
 
+// Cards come in dimmed; each one lights up only when its word is spoken
 const CompareCard: React.FC<{
   title: string;
   value: number;
   sub: string;
   highlight: boolean;
-  delay: number;
-  blinkFrom?: number;
-}> = ({ title, value, sub, highlight, delay, blinkFrom = 0 }) => {
+  appear: number;
+  litAt: number;
+  blinkFrom: number;
+}> = ({ title, value, sub, highlight, appear, litAt, blinkFrom }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - delay, fps, config: { damping: 13, stiffness: 170 } });
-  // Blink on/off ~3.75 Hz once both numbers are in
+  const s = spring({ frame: frame - appear, fps, config: { damping: 13, stiffness: 170 } });
+  const isLit = frame >= litAt;
+  const lit = isLit ? spring({ frame: frame - litAt + 1, fps, config: { damping: 12, stiffness: 220 } }) : 0;
+  const accent = highlight ? YELLOW : "#ffffff";
   const blink =
-    highlight && frame > blinkFrom
-      ? Math.floor((frame - blinkFrom) / 4) % 2 === 0
-        ? 1
-        : 0.25
-      : 0;
+    highlight && frame >= blinkFrom ? (Math.floor((frame - blinkFrom) / 4) % 2 === 0 ? 1 : 0.25) : 0;
   return (
     <div
       style={{
         width: 400,
         padding: "34px 10px 30px",
         borderRadius: 40,
-        background: highlight ? "rgba(60,38,6,0.75)" : "rgba(14,14,30,0.72)",
-        border: `4px solid ${highlight ? YELLOW : "rgba(255,255,255,0.35)"}`,
-        boxShadow: highlight
+        background: highlight && isLit ? "rgba(60,38,6,0.75)" : "rgba(14,14,30,0.72)",
+        border: `4px solid ${isLit ? accent : "rgba(255,255,255,0.18)"}`,
+        boxShadow: highlight && isLit
           ? `0 0 ${20 + blink * 70}px rgba(255,200,50,${0.25 + blink * 0.6})`
           : "0 20px 60px rgba(0,0,0,0.5)",
         textAlign: "center",
         fontFamily: FONT,
         color: "white",
-        scale: interpolate(s, [0, 1], [0.4, 1]),
-        opacity: interpolate(s, [0, 0.3], [0, 1], clamp),
+        scale: interpolate(s, [0, 1], [0.4, 1]) * interpolate(lit, [0, 1], [0.94, 1]),
+        opacity: interpolate(s, [0, 0.3], [0, 1], clamp) * interpolate(lit, [0, 1], [0.45, 1]),
       }}
     >
-      <div style={{ fontSize: 48, fontWeight: 900, letterSpacing: 2 }}>{title}</div>
+      <div style={{ fontSize: 48, fontWeight: 900, letterSpacing: 2, color: isLit ? accent : "white" }}>
+        {title}
+      </div>
       <div
         style={{
           fontSize: 170,
           fontWeight: 900,
           lineHeight: 1.05,
-          color: highlight ? YELLOW : "white",
-          textShadow: highlight ? `0 0 ${10 + blink * 40}px rgba(255,200,50,0.9)` : textShadow,
+          color: highlight && isLit ? YELLOW : "white",
+          textShadow:
+            highlight && isLit ? `0 0 ${10 + blink * 40}px rgba(255,200,50,0.9)` : textShadow,
         }}
       >
         {value}
@@ -316,29 +298,23 @@ const CompareCard: React.FC<{
   );
 };
 
-export const SceneCompare: React.FC<SceneProps> = ({ parts }) => {
+export const SceneCompare: React.FC<SceneProps> = ({ offset }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const second = parts[parts.length - 1];
-  // Blink on "...que um ANO" (~2s into the second phrase)
-  const anoAt = second + Math.round(2.0 * fps);
-  const g = spring({ frame: frame - second, fps, config: { damping: 10, stiffness: 200 } });
+  const diaAt = spokenFrame("compare", "DIA") - offset;
+  const anoAt = spokenFrame("compare", "ANO") - offset;
+  const g =
+    frame >= anoAt ? spring({ frame: frame - anoAt + 1, fps, config: { damping: 10, stiffness: 200 } }) : 0;
   const pulse = 1 + 0.12 * Math.max(0, Math.sin((frame - anoAt) * 0.8)) * (frame > anoAt ? 1 : 0);
   return (
     <AbsoluteFill>
-      <Headline
-        text="Um *DIA* | em Vênus dura mais que um *ANO* 🤯"
-        fontSize={100}
-        parts={parts}
-      />
       <AbsoluteFill
         style={{
-          top: 760,
+          top: 820,
           height: 600,
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "center",
-          gap: 0,
         }}
       >
         <CompareCard
@@ -346,7 +322,8 @@ export const SceneCompare: React.FC<SceneProps> = ({ parts }) => {
           value={243}
           sub="1 giro"
           highlight
-          delay={parts[0]}
+          appear={8}
+          litAt={diaAt}
           blinkFrom={anoAt}
         />
         <div
@@ -363,66 +340,32 @@ export const SceneCompare: React.FC<SceneProps> = ({ parts }) => {
         >
           &gt;
         </div>
-        <CompareCard title="1 ANO" value={225} sub="1 volta no Sol" highlight={false}
-          delay={second + 3}
+        <CompareCard
+          title="1 ANO"
+          value={225}
+          sub="1 volta no Sol"
+          highlight={false}
+          appear={11}
+          litAt={anoAt}
+          blinkFrom={Infinity}
         />
       </AbsoluteFill>
     </AbsoluteFill>
   );
 };
 
-export const SceneRetro: React.FC<SceneProps> = ({ parts }) => {
+export const SceneOutro: React.FC<SceneProps> = ({ offset }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - parts[0], fps, config: { damping: 15, stiffness: 160 } });
+  const segueAt = spokenFrame("cta", "Segue") - offset;
+  const s =
+    frame >= segueAt
+      ? spring({ frame: frame - segueAt + 1, fps, config: { damping: 12, stiffness: 170 } })
+      : 0;
   return (
-    <AbsoluteFill>
-      <Headline
-        text="E | lá o Sol nasce no *OESTE*"
-        fontSize={112}
-        parts={parts}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: SAFE_Y + 50,
-          left: 0,
-          right: 0,
-          display: "flex",
-          justifyContent: "center",
-          opacity: s,
-          translate: `0px ${interpolate(s, [0, 1], [60, 0])}px`,
-        }}
-      >
-        <div
-          style={{
-            padding: "22px 44px",
-            borderRadius: 999,
-            background: "rgba(10,10,24,0.65)",
-            border: `3px solid ${YELLOW}`,
-            fontFamily: FONT,
-            fontWeight: 900,
-            fontSize: 50,
-            color: "white",
-          }}
-        >
-          <span style={{ color: YELLOW }}>↻</span> gira ao contrário
-        </div>
-      </div>
-    </AbsoluteFill>
-  );
-};
-
-export const SceneOutro: React.FC<SceneProps> = ({ parts }) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - parts[0] - 1.0 * fps, fps, config: { damping: 12, stiffness: 170 } });
-  return (
-    <AbsoluteFill style={{ backgroundColor: `rgba(2,2,10,${interpolate(frame, [0, 10], [0, 0.35], clamp)})` }}>
-      <Headline text={"Segue para mais *curiosidades*\u00A0🚀"} fontSize={104}
-        center
-        parts={parts}
-      />
+    <AbsoluteFill
+      style={{ backgroundColor: `rgba(2,2,10,${interpolate(frame, [0, 10], [0, 0.35], clamp)})` }}
+    >
       <div
         style={{
           position: "absolute",
