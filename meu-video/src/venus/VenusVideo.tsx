@@ -1,7 +1,5 @@
 import { Audio } from "@remotion/media";
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
-import { fade } from "@remotion/transitions/fade";
-import { slide } from "@remotion/transitions/slide";
 import React from "react";
 import {
   AbsoluteFill,
@@ -9,7 +7,6 @@ import {
   Sequence,
   staticFile,
   useCurrentFrame,
-  useVideoConfig,
 } from "remotion";
 import {
   SceneCompare,
@@ -19,11 +16,22 @@ import {
   SceneRetro,
   SceneSpin,
 } from "./Overlays";
+import { quickOut } from "./QuickOut";
 import { SpaceScene } from "./SpaceScene";
-import { CUT, NARRATION, SCENE_DURATIONS, SCENE_STARTS } from "./timeline";
+import {
+  CUT,
+  NARRATION,
+  SCENE_DURATIONS,
+  SCENE_STARTS,
+  textParts,
+  trimFrames,
+} from "./timeline";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
-const T = 8; // fast transitions, centred on each cut
+// Fast transitions spanning [cut - 6, cut + 2]: the old text is gone by
+// cut - 3, right when the new text pops in (3 frames ahead of the voice).
+const T = 8;
+const PRE = 6;
 
 const Grade: React.FC = () => {
   const frame = useCurrentFrame();
@@ -34,9 +42,9 @@ const Grade: React.FC = () => {
     clamp,
   );
   const flash = Math.max(
-    interpolate(frame, [CUT.approachEnd - 3, CUT.approachEnd, CUT.approachEnd + 6], [0, 0.35, 0], clamp),
-    interpolate(frame, [CUT.compareEnd - 2, CUT.compareEnd + 1, CUT.compareEnd + 9], [0, 0.6, 0], clamp),
-    interpolate(frame, [CUT.retroEnd - 2, CUT.retroEnd + 1, CUT.retroEnd + 8], [0, 0.4, 0], clamp),
+    interpolate(frame, [CUT.approachEnd - 8, CUT.approachEnd - 6, CUT.approachEnd - 2], [0, 0.35, 0], clamp),
+    interpolate(frame, [CUT.compareEnd - 8, CUT.compareEnd - 5, CUT.compareEnd - 1], [0, 0.6, 0], clamp),
+    interpolate(frame, [CUT.retroEnd - 8, CUT.retroEnd - 6, CUT.retroEnd - 2], [0, 0.4, 0], clamp),
   );
   return (
     <>
@@ -53,42 +61,39 @@ const Grade: React.FC = () => {
 };
 
 export const VenusVideo: React.FC = () => {
-  const { fps } = useVideoConfig();
   const [d1, d2, d3, d4, d5, d6] = SCENE_DURATIONS;
-  // Each text sequence starts T/2 before its cut (except the first),
-  // so the speech starts at local frame T/2.
-  const seqStart = (i: number) => (i === 0 ? 0 : SCENE_STARTS[i] - T / 2);
-  const speechAt = (i: number) => SCENE_STARTS[i] - seqStart(i);
+  // Each text sequence starts PRE frames before its cut (except the first)
+  const seqStart = (i: number) => (i === 0 ? 0 : SCENE_STARTS[i] - PRE);
+  // Text parts in each sequence's local frames, ahead of the measured speech
+  const parts = (i: number) =>
+    textParts(i).map((f) => f + SCENE_STARTS[i] - seqStart(i));
   return (
     <AbsoluteFill style={{ backgroundColor: "#02020a" }}>
       <SpaceScene />
       <Grade />
       <TransitionSeries>
-        <TransitionSeries.Sequence name="Intro" durationInFrames={d1 + T / 2}>
-          <SceneIntro speechAt={speechAt(0)} />
+        <TransitionSeries.Sequence name="Intro" durationInFrames={d1 + T - PRE}>
+          <SceneIntro parts={parts(0)} />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
+        <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Rotação" durationInFrames={d2 + T}>
-          <SceneSpin startFrame={seqStart(1)} speechAt={speechAt(1)} />
+          <SceneSpin startFrame={seqStart(1)} parts={parts(1)} />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition
-          presentation={slide({ direction: "from-right" })}
-          timing={linearTiming({ durationInFrames: T })}
-        />
+        <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Órbita" durationInFrames={d3 + T}>
-          <SceneOrbit startFrame={seqStart(2)} speechAt={speechAt(2)} />
+          <SceneOrbit startFrame={seqStart(2)} parts={parts(2)} />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
+        <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Comparação" durationInFrames={d4 + T}>
-          <SceneCompare speechAt={speechAt(3)} />
+          <SceneCompare parts={parts(3)} />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
+        <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
         <TransitionSeries.Sequence name="Retrógrado" durationInFrames={d5 + T}>
-          <SceneRetro speechAt={speechAt(4)} />
+          <SceneRetro parts={parts(4)} />
         </TransitionSeries.Sequence>
-        <TransitionSeries.Transition presentation={fade()} timing={linearTiming({ durationInFrames: T })} />
-        <TransitionSeries.Sequence name="CTA" durationInFrames={d6 + T / 2}>
-          <SceneOutro speechAt={speechAt(5)} />
+        <TransitionSeries.Transition presentation={quickOut()} timing={linearTiming({ durationInFrames: T })} />
+        <TransitionSeries.Sequence name="CTA" durationInFrames={d6 + PRE}>
+          <SceneOutro parts={parts(5)} />
         </TransitionSeries.Sequence>
       </TransitionSeries>
       {/* Narration: one clip per scene, leading silence trimmed, ends at the cut */}
@@ -102,7 +107,7 @@ export const VenusVideo: React.FC = () => {
         >
           <Audio
             src={staticFile(n.file)}
-            trimBefore={Math.floor(n.start * fps)}
+            trimBefore={trimFrames(i)}
             durationInFrames={SCENE_DURATIONS[i]}
           />
         </Sequence>

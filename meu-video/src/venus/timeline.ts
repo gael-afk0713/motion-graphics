@@ -4,18 +4,24 @@ import * as THREE from "three";
 // All values in absolute composition frames @30fps.
 export const FPS = 30;
 
-// Narration per scene: speech start/end (seconds) inside each mp3, measured
-// with ffmpeg silencedetect (adaptive loudnorm threshold).
+// Narration per scene, measured with ffmpeg silencedetect (adaptive loudnorm
+// threshold). Times are seconds inside each mp3:
+//  start/end = first/last speech, pause = the mid-sentence pause (>= 0.2s)
+//  that splits the on-screen text in two parts.
 export const NARRATION = [
-  { file: "cena1.mp3", start: 0.062, end: 2.563 },
-  { file: "cena2.mp3", start: 0.0, end: 4.939 },
-  { file: "cena3.mp3", start: 0.0, end: 3.2 },
-  { file: "cena4.mp3", start: 0.0, end: 3.989 },
-  { file: "cena5.mp3", start: 0.164, end: 3.833 },
-  { file: "cena6.mp3", start: 0.054, end: 1.763 },
+  { file: "cena1.mp3", start: 0.062, end: 2.563, pause: [1.229, 1.497] },
+  { file: "cena2.mp3", start: 0.024, end: 4.939, pause: [2.89, 3.155] },
+  { file: "cena3.mp3", start: 0.035, end: 3.2, pause: null },
+  { file: "cena4.mp3", start: 0.034, end: 3.989, pause: [0.618, 1.001] },
+  { file: "cena5.mp3", start: 0.042, end: 3.833, pause: [0.868, 1.249] },
+  { file: "cena6.mp3", start: 0.054, end: 1.763, pause: null },
 ] as const;
 
 export const TAIL_SECONDS = 0.3; // breathing room after each line
+export const TEXT_LEAD_FRAMES = 3; // text pops in this many frames before the voice
+
+// Audio is trimmed at a frame boundary just before the speech starts
+export const trimFrames = (i: number) => Math.floor(NARRATION[i].start * FPS);
 
 // Scene length = speech length + 0.3s
 export const SCENE_DURATIONS = NARRATION.map(
@@ -26,9 +32,21 @@ export const SCENE_STARTS = SCENE_DURATIONS.map((_, i) =>
 );
 export const DURATION = SCENE_DURATIONS.reduce((a, b) => a + b, 0);
 
-// Absolute frame of a moment `sec` seconds into scene `i`'s (trimmed) speech
-export const beat = (i: number, sec: number) =>
-  SCENE_STARTS[i] + Math.round(sec * FPS);
+// Frames from scene start to the moment `fileSec` of that scene's mp3
+export const speechOffset = (i: number, fileSec: number) =>
+  Math.round(fileSec * FPS) - trimFrames(i);
+
+// Absolute frame of the moment `fileSec` in scene `i`'s mp3
+export const beat = (i: number, fileSec: number) =>
+  SCENE_STARTS[i] + speechOffset(i, fileSec);
+
+// Frames (from scene start) at which each text part appears
+export const textParts = (i: number): number[] => {
+  const n = NARRATION[i];
+  const parts = [speechOffset(i, n.start) - TEXT_LEAD_FRAMES];
+  if (n.pause) parts.push(speechOffset(i, n.pause[1]) - TEXT_LEAD_FRAMES);
+  return parts;
+};
 
 export const CUT = {
   approachEnd: SCENE_STARTS[1],
@@ -43,7 +61,7 @@ export const SPIN_COUNTER = { start: beat(1, 0.7), end: beat(1, 2.85) };
 // One full orbit (0 -> 225 days) across the scene-3 line, landing on "Sol"
 export const ORBIT = { start: beat(2, 0.45), end: beat(2, 3.2) };
 // Retrograde arrow appears with the first phrase of scene 5
-export const RETRO_ARROW_START = beat(4, 0.05);
+export const RETRO_ARROW_START = beat(4, NARRATION[4].start) - TEXT_LEAD_FRAMES;
 
 export const ORBIT_RADIUS = 30;
 export const VENUS_RADIUS = 3;

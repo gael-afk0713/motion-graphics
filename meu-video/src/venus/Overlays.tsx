@@ -39,18 +39,23 @@ const textShadow =
   "0 4px 0 rgba(0,0,0,0.55), 0 10px 40px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.9)";
 
 // Headline: words wrapped in *asterisks* are keywords rendered in yellow.
+// " | " splits the text into parts; part k pops in at frame parts[k]
+// (the start of each spoken phrase, measured from the narration).
 export const Headline: React.FC<{
   text: string;
+  parts: number[];
   fontSize?: number;
   top?: number;
-  delay?: number;
   center?: boolean;
-  /** Seconds (relative to `delay`) at which each word is spoken. */
-  times?: number[];
-}> = ({ text, fontSize = 104, top = SAFE_Y + 40, delay = 0, center = false, times }) => {
+}> = ({ text, parts, fontSize = 104, top = SAFE_Y + 40, center = false }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const words = text.split(" ");
+  const words: { w: string; start: number }[] = [];
+  text.split(" | ").forEach((chunk, p) => {
+    chunk.split(" ").forEach((w, k) => {
+      words.push({ w, start: parts[Math.min(p, parts.length - 1)] + k * 1.5 });
+    });
+  });
   return (
     <div
       style={{
@@ -80,12 +85,11 @@ export const Headline: React.FC<{
           columnGap: fontSize * 0.26,
         }}
       >
-        {words.map((w, i) => {
+        {words.map(({ w, start }, i) => {
           const isKey = w.includes("*");
           const clean = w.replace(/\*/g, "");
           const s = spring({
-            // Pop ~2 frames ahead of the spoken word
-            frame: frame - delay - (times ? times[i] * fps - 2 : i * 2.5),
+            frame: frame - start,
             fps,
             config: { damping: 14, stiffness: 180, mass: 0.6 },
           });
@@ -189,22 +193,22 @@ const Counter: React.FC<{
   );
 };
 
-type SceneProps = { speechAt: number };
+/** Local frames at which each text part appears (already ahead of the voice). */
+type SceneProps = { parts: number[] };
 
-export const SceneIntro: React.FC<SceneProps> = ({ speechAt }) => (
+export const SceneIntro: React.FC<SceneProps> = ({ parts }) => (
   <AbsoluteFill>
     <Headline
-      text="Esse planeta *QUEBRA* as regras"
+      text="Esse planeta | *QUEBRA* as regras"
       fontSize={118}
-      delay={speechAt}
-      times={[0, 0.3, 1.44, 1.85, 2.05]}
+      parts={parts}
     />
   </AbsoluteFill>
 );
 
 export const SceneSpin: React.FC<SceneProps & { startFrame: number }> = ({
   startFrame,
-  speechAt,
+  parts,
 }) => {
   const frame = useCurrentFrame();
   const abs = frame + startFrame;
@@ -215,10 +219,9 @@ export const SceneSpin: React.FC<SceneProps & { startFrame: number }> = ({
   return (
     <AbsoluteFill>
       <Headline
-        text="Vênus leva *243* *DIAS* para girar uma vez"
+        text="Vênus leva *243* *DIAS* | para girar uma vez"
         fontSize={100}
-        delay={speechAt}
-        times={[0, 0.45, 0.8, 2.4, 3.16, 3.4, 3.73, 4.09]}
+        parts={parts}
       />
       <Counter
         value={Math.round(p * 243)}
@@ -233,7 +236,7 @@ export const SceneSpin: React.FC<SceneProps & { startFrame: number }> = ({
 
 export const SceneOrbit: React.FC<SceneProps & { startFrame: number }> = ({
   startFrame,
-  speechAt,
+  parts,
 }) => {
   const frame = useCurrentFrame();
   const abs = frame + startFrame;
@@ -246,8 +249,7 @@ export const SceneOrbit: React.FC<SceneProps & { startFrame: number }> = ({
       <Headline
         text="Mas só *225* *dias* para dar a volta no *Sol*"
         fontSize={100}
-        delay={speechAt}
-        times={[0, 0.2, 0.45, 1.5, 1.8, 2.0, 2.2, 2.35, 2.6, 2.85]}
+        parts={parts}
       />
       <Counter
         value={Math.round(p * 225)}
@@ -314,19 +316,20 @@ const CompareCard: React.FC<{
   );
 };
 
-export const SceneCompare: React.FC<SceneProps> = ({ speechAt }) => {
+export const SceneCompare: React.FC<SceneProps> = ({ parts }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const anoAt = speechAt + Math.round(2.9 * fps); // "...que um ANO"
-  const g = spring({ frame: frame - speechAt - 1.0 * fps, fps, config: { damping: 10, stiffness: 200 } });
+  const second = parts[parts.length - 1];
+  // Blink on "...que um ANO" (~2s into the second phrase)
+  const anoAt = second + Math.round(2.0 * fps);
+  const g = spring({ frame: frame - second, fps, config: { damping: 10, stiffness: 200 } });
   const pulse = 1 + 0.12 * Math.max(0, Math.sin((frame - anoAt) * 0.8)) * (frame > anoAt ? 1 : 0);
   return (
     <AbsoluteFill>
       <Headline
-        text="Um *DIA* em Vênus dura mais que um *ANO* 🤯"
+        text="Um *DIA* | em Vênus dura mais que um *ANO* 🤯"
         fontSize={100}
-        delay={speechAt}
-        times={[0, 0.2, 0.45, 1.0, 1.5, 1.9, 2.3, 2.6, 2.9, 3.6]}
+        parts={parts}
       />
       <AbsoluteFill
         style={{
@@ -343,7 +346,7 @@ export const SceneCompare: React.FC<SceneProps> = ({ speechAt }) => {
           value={243}
           sub="1 giro"
           highlight
-          delay={speechAt + 0.2 * fps}
+          delay={parts[0]}
           blinkFrom={anoAt}
         />
         <div
@@ -361,24 +364,23 @@ export const SceneCompare: React.FC<SceneProps> = ({ speechAt }) => {
           &gt;
         </div>
         <CompareCard title="1 ANO" value={225} sub="1 volta no Sol" highlight={false}
-          delay={speechAt + 0.6 * fps}
+          delay={second + 3}
         />
       </AbsoluteFill>
     </AbsoluteFill>
   );
 };
 
-export const SceneRetro: React.FC<SceneProps> = ({ speechAt }) => {
+export const SceneRetro: React.FC<SceneProps> = ({ parts }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - speechAt, fps, config: { damping: 15, stiffness: 160 } });
+  const s = spring({ frame: frame - parts[0], fps, config: { damping: 15, stiffness: 160 } });
   return (
     <AbsoluteFill>
       <Headline
-        text="E lá o Sol nasce no *OESTE*"
+        text="E | lá o Sol nasce no *OESTE*"
         fontSize={112}
-        delay={speechAt}
-        times={[1.84, 2.0, 2.15, 2.3, 2.6, 2.9, 3.1]}
+        parts={parts}
       />
       <div
         style={{
@@ -411,16 +413,15 @@ export const SceneRetro: React.FC<SceneProps> = ({ speechAt }) => {
   );
 };
 
-export const SceneOutro: React.FC<SceneProps> = ({ speechAt }) => {
+export const SceneOutro: React.FC<SceneProps> = ({ parts }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - speechAt - 1.0 * fps, fps, config: { damping: 12, stiffness: 170 } });
+  const s = spring({ frame: frame - parts[0] - 1.0 * fps, fps, config: { damping: 12, stiffness: 170 } });
   return (
     <AbsoluteFill style={{ backgroundColor: `rgba(2,2,10,${interpolate(frame, [0, 10], [0, 0.35], clamp)})` }}>
       <Headline text={"Segue para mais *curiosidades*\u00A0🚀"} fontSize={104}
         center
-        delay={speechAt}
-        times={[0, 0.3, 0.5, 0.75, 1.3]}
+        parts={parts}
       />
       <div
         style={{
