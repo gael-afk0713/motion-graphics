@@ -17,13 +17,25 @@ export const FogueteVideo: React.FC = () => (
     <Captions />
     {/* narration exactly as delivered: no speed change, no trimming */}
     {SCENES.map((s, i) => (
-      <Sequence key={s.file} name={`Narração ${i + 1}`} from={S[i]} durationInFrames={SCENE_DURATIONS[i]} layout="none">
+      <Sequence
+        key={s.file}
+        name={`Narração ${i + 1}`}
+        from={S[i]}
+        durationInFrames={SCENE_DURATIONS[i]}
+        layout="none"
+      >
         <Audio src={staticFile(s.file)} />
       </Sequence>
     ))}
     {/* sound effects (generated with ffmpeg, ~18 dB below the voice) */}
     {BOUNDARIES.map((b, i) => (
-      <Sequence key={`w${i}`} name={`Whoosh ${i + 1}`} from={b - WHOOSH_LEAD} durationInFrames={21} layout="none">
+      <Sequence
+        key={`w${i}`}
+        name={`Whoosh ${i + 1}`}
+        from={b - WHOOSH_LEAD}
+        durationInFrames={21}
+        layout="none"
+      >
         <Audio src={staticFile("foguete/sfx/whoosh.wav")} />
       </Sequence>
     ))}

@@ -3,8 +3,19 @@
 export const FPS = 30;
 export const TAIL = 0.15;
 
-type Block = { text: string; group: number; size?: number; side?: number; allAtStart?: boolean };
-type SceneDef = { file: string; dur: number; segs: [number, number][][]; blocks: Block[] };
+type Block = {
+  text: string;
+  group: number;
+  size?: number;
+  side?: number;
+  allAtStart?: boolean;
+};
+type SceneDef = {
+  file: string;
+  dur: number;
+  segs: [number, number][][];
+  blocks: Block[];
+};
 
 // segs = spoken stretches (seconds) from ffmpeg silencedetect (noise=-30dB, d=0.05s),
 // grouped: blocks with the same `group` share that list of stretches and are timed together
@@ -19,21 +30,40 @@ const FIRST = { size: 86, side: 40 };
 
 export const SCENES: SceneDef[] = [
   {
-    file: "foguete/foguete1.mp3", dur: 4.023,
+    file: "foguete/foguete1.mp3",
+    dur: 4.023,
     segs: [
-      [[0, 0.741], [0.812, 1.511], [1.646, 2.296]],
-      [[2.684, 3.874], [3.977, 4.023]],
+      [
+        [0, 0.741],
+        [0.812, 1.511],
+        [1.646, 2.296],
+      ],
+      [
+        [2.684, 3.874],
+        [3.977, 4.023],
+      ],
     ],
     blocks: [
-      { text: "Um foguete ^1da | SpaceX ^2*bateu* *na* *Lua.*", group: 0, allAtStart: true, ...FIRST },
+      {
+        text: "Um foguete ^1da | SpaceX ^2*bateu* *na* *Lua.*",
+        group: 0,
+        allAtStart: true,
+        ...FIRST,
+      },
       { text: "E *ninguém* | *queria* isso.", group: 1 },
     ],
   },
   {
-    file: "foguete/foguete2.mp3", dur: 4.31,
+    file: "foguete/foguete2.mp3",
+    dur: 4.31,
     segs: [
       [[0, 1.76]],
-      [[1.959, 2.119], [2.173, 3.802], [3.872, 4.186], [4.282, 4.31]],
+      [
+        [1.959, 2.119],
+        [2.173, 3.802],
+        [3.872, 4.186],
+        [4.282, 4.31],
+      ],
     ],
     blocks: [
       { text: "Era um pedaço", group: 0 },
@@ -43,11 +73,16 @@ export const SCENES: SceneDef[] = [
     ],
   },
   {
-    file: "foguete/foguete3.mp3", dur: 5.721,
+    file: "foguete/foguete3.mp3",
+    dur: 5.721,
     segs: [
       [[0, 0.937]],
       [[1.064, 2.325]],
-      [[2.807, 4.949], [5.011, 5.587], [5.685, 5.721]],
+      [
+        [2.807, 4.949],
+        [5.011, 5.587],
+        [5.685, 5.721],
+      ],
     ],
     blocks: [
       { text: "*Sem* *combustível,*", group: 0 },
@@ -57,10 +92,22 @@ export const SCENES: SceneDef[] = [
     ],
   },
   {
-    file: "foguete/foguete4.mp3", dur: 5.381,
+    file: "foguete/foguete4.mp3",
+    dur: 5.381,
     segs: [
-      [[0, 0.309], [0.362, 2.108], [2.178, 2.603]],
-      [[2.809, 3.072], [3.148, 3.785], [3.894, 4.437], [4.502, 4.966], [5.068, 5.122], [5.349, 5.381]],
+      [
+        [0, 0.309],
+        [0.362, 2.108],
+        [2.178, 2.603],
+      ],
+      [
+        [2.809, 3.072],
+        [3.148, 3.785],
+        [3.894, 4.437],
+        [4.502, 4.966],
+        [5.068, 5.122],
+        [5.349, 5.381],
+      ],
     ],
     blocks: [
       { text: "Ele ^1bateu | a quase", group: 0 },
@@ -70,12 +117,26 @@ export const SCENES: SceneDef[] = [
     ],
   },
   {
-    file: "foguete/foguete5.mp3", dur: 6.922,
+    file: "foguete/foguete5.mp3",
+    dur: 6.922,
     segs: [
       [[0, 0.827]],
-      [[1.27, 1.815], [1.875, 2.183]],
-      [[2.399, 4.076], [4.155, 4.257], [4.408, 4.698], [4.801, 4.826]],
-      [[5.171, 5.729], [5.797, 6.61], [6.662, 6.792], [6.874, 6.922]],
+      [
+        [1.27, 1.815],
+        [1.875, 2.183],
+      ],
+      [
+        [2.399, 4.076],
+        [4.155, 4.257],
+        [4.408, 4.698],
+        [4.801, 4.826],
+      ],
+      [
+        [5.171, 5.729],
+        [5.797, 6.61],
+        [6.662, 6.792],
+        [6.874, 6.922],
+      ],
     ],
     blocks: [
       { text: "E o mais | curioso?", group: 0 },
@@ -86,8 +147,17 @@ export const SCENES: SceneDef[] = [
     ],
   },
   {
-    file: "foguete/foguete6.mp3", dur: 2.9,
-    segs: [[[0, 1.5], [1.554, 2.168], [2.239, 2.317], [2.429, 2.772], [2.869, 2.9]]],
+    file: "foguete/foguete6.mp3",
+    dur: 2.9,
+    segs: [
+      [
+        [0, 1.5],
+        [1.554, 2.168],
+        [2.239, 2.317],
+        [2.429, 2.772],
+        [2.869, 2.9],
+      ],
+    ],
     blocks: [
       { text: "*Mande* *para* | *alguém*", group: 0 },
       { text: "que ainda acha | que a Lua", group: 0 },
@@ -96,8 +166,12 @@ export const SCENES: SceneDef[] = [
   },
 ];
 
-export const SCENE_DURATIONS = SCENES.map((s) => Math.ceil((s.dur + TAIL) * FPS));
-export const S = SCENE_DURATIONS.map((_, i) => SCENE_DURATIONS.slice(0, i).reduce((a, b) => a + b, 0));
+export const SCENE_DURATIONS = SCENES.map((s) =>
+  Math.ceil((s.dur + TAIL) * FPS),
+);
+export const S = SCENE_DURATIONS.map((_, i) =>
+  SCENE_DURATIONS.slice(0, i).reduce((a, b) => a + b, 0),
+);
 export const DURATION = SCENE_DURATIONS.reduce((a, b) => a + b, 0);
 export const sceneEnd = (i: number) => S[i] + SCENE_DURATIONS[i];
 export const at = (i: number, sec: number) => S[i] + Math.round(sec * FPS);

@@ -20,17 +20,32 @@ const hash3 = (x: number, y: number, z: number) => {
 };
 const sm = (t: number) => t * t * (3 - 2 * t);
 const vnoise = (x: number, y: number, z: number) => {
-  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
-  const xf = sm(x - xi), yf = sm(y - yi), zf = sm(z - zi);
+  const xi = Math.floor(x),
+    yi = Math.floor(y),
+    zi = Math.floor(z);
+  const xf = sm(x - xi),
+    yf = sm(y - yi),
+    zf = sm(z - zi);
   const l = (a: number, b: number, t: number) => a + (b - a) * t;
   return l(
-    l(l(hash3(xi, yi, zi), hash3(xi + 1, yi, zi), xf), l(hash3(xi, yi + 1, zi), hash3(xi + 1, yi + 1, zi), xf), yf),
-    l(l(hash3(xi, yi, zi + 1), hash3(xi + 1, yi, zi + 1), xf), l(hash3(xi, yi + 1, zi + 1), hash3(xi + 1, yi + 1, zi + 1), xf), yf),
+    l(
+      l(hash3(xi, yi, zi), hash3(xi + 1, yi, zi), xf),
+      l(hash3(xi, yi + 1, zi), hash3(xi + 1, yi + 1, zi), xf),
+      yf,
+    ),
+    l(
+      l(hash3(xi, yi, zi + 1), hash3(xi + 1, yi, zi + 1), xf),
+      l(hash3(xi, yi + 1, zi + 1), hash3(xi + 1, yi + 1, zi + 1), xf),
+      yf,
+    ),
     zf,
   );
 };
 const fbm = (x: number, y: number, z: number, oct: number) => {
-  let s = 0, a = 0.5, f = 1, n = 0;
+  let s = 0,
+    a = 0.5,
+    f = 1,
+    n = 0;
   for (let i = 0; i < oct; i++) {
     s += a * vnoise(x * f, y * f, z * f);
     n += a;
@@ -42,7 +57,8 @@ const fbm = (x: number, y: number, z: number, oct: number) => {
 
 // crater radial height profile (r in crater radii): bowl, raised rim, soft ejecta
 const craterProfile = (r: number, fresh: number) => {
-  if (r < 1) return -1 + r * r * 1.15 + (r > 0.85 ? (0.35 * (r - 0.85)) / 0.15 : 0);
+  if (r < 1)
+    return -1 + r * r * 1.15 + (r > 0.85 ? (0.35 * (r - 0.85)) / 0.15 : 0);
   const rim = Math.exp(-(((r - 1) / (0.12 + 0.1 * (1 - fresh))) ** 2)) * 0.5;
   const ej = r < 2.6 ? 0.12 * (1 - (r - 1) / 1.6) ** 2 : 0;
   return rim + ej;
@@ -56,7 +72,14 @@ const toCanvasTex = (c: HTMLCanvasElement, srgb: boolean) => {
   return t;
 };
 
-const heightToNormal = (h: Float32Array, W: number, H: number, strength: number, sphere: boolean, wrapY: boolean) => {
+const heightToNormal = (
+  h: Float32Array,
+  W: number,
+  H: number,
+  strength: number,
+  sphere: boolean,
+  wrapY: boolean,
+) => {
   const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
@@ -67,11 +90,14 @@ const heightToNormal = (h: Float32Array, W: number, H: number, strength: number,
     const yu = wrapY ? (y - 1 + H) % H : Math.max(0, y - 1);
     const yd = wrapY ? (y + 1) % H : Math.min(H - 1, y + 1);
     for (let x = 0; x < W; x++) {
-      const xl = (x - 1 + W) % W, xr = (x + 1) % W;
+      const xl = (x - 1 + W) % W,
+        xr = (x + 1) % W;
       let dx = (h[y * W + xr] - h[y * W + xl]) * strength;
       const dy = (h[yd * W + x] - h[yu * W + x]) * strength;
       if (sphere) dx /= Math.max(0.15, lat);
-      const nx = -dx, ny = dy, nz = 1;
+      const nx = -dx,
+        ny = dy,
+        nz = 1;
       const l = Math.hypot(nx, ny, nz);
       const i = (y * W + x) * 4;
       img.data[i] = ((nx / l) * 0.5 + 0.5) * 255;
@@ -87,35 +113,49 @@ const heightToNormal = (h: Float32Array, W: number, H: number, strength: number,
 // ---------------------------------------------------------------------------
 // The Moon (equirectangular albedo + normal map)
 // ---------------------------------------------------------------------------
-let moonCache: { map: THREE.CanvasTexture; normal: THREE.CanvasTexture } | null = null;
+let moonCache: {
+  map: THREE.CanvasTexture;
+  normal: THREE.CanvasTexture;
+} | null = null;
 export const getMoonTextures = () => {
   if (moonCache) return moonCache;
-  const W = 2048, H = 1024;
+  const W = 2048,
+    H = 1024;
   const h = new Float32Array(W * H);
   const alb = new Float32Array(W * H);
   // low-res fbm for maria and large-scale tone (bilinear upsampled)
-  const LW = 512, LH = 256;
-  const maria = new Float32Array(LW * LH), tone = new Float32Array(LW * LH);
+  const LW = 512,
+    LH = 256;
+  const maria = new Float32Array(LW * LH),
+    tone = new Float32Array(LW * LH);
   for (let y = 0; y < LH; y++) {
     const th = ((y + 0.5) / LH) * Math.PI;
     for (let x = 0; x < LW; x++) {
       const ph = ((x + 0.5) / LW) * Math.PI * 2;
-      const px = Math.sin(th) * Math.cos(ph), py = Math.cos(th), pz = Math.sin(th) * Math.sin(ph);
+      const px = Math.sin(th) * Math.cos(ph),
+        py = Math.cos(th),
+        pz = Math.sin(th) * Math.sin(ph);
       maria[y * LW + x] = fbm(px * 1.6 + 11, py * 1.6 + 3, pz * 1.6 + 7, 5);
       tone[y * LW + x] = fbm(px * 6 + 1, py * 6 + 5, pz * 6 + 2, 5);
     }
   }
   const samp = (a: Float32Array, u: number, v: number) => {
-    const x = u * LW - 0.5, y = Math.min(LH - 1.001, Math.max(0, v * LH - 0.5));
-    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
-    const xa = ((x0 % LW) + LW) % LW, xb = (xa + 1) % LW;
+    const x = u * LW - 0.5,
+      y = Math.min(LH - 1.001, Math.max(0, v * LH - 0.5));
+    const x0 = Math.floor(x),
+      y0 = Math.floor(y),
+      fx = x - x0,
+      fy = y - y0;
+    const xa = ((x0 % LW) + LW) % LW,
+      xb = (xa + 1) % LW;
     const r0 = a[y0 * LW + xa] * (1 - fx) + a[y0 * LW + xb] * fx;
     const r1 = a[(y0 + 1) * LW + xa] * (1 - fx) + a[(y0 + 1) * LW + xb] * fx;
     return r0 * (1 - fy) + r1 * fy;
   };
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
-      const u = (x + 0.5) / W, v = (y + 0.5) / H;
+      const u = (x + 0.5) / W,
+        v = (y + 0.5) / H;
       const m = samp(maria, u, v);
       const mare = sm(Math.min(1, Math.max(0, (m - 0.5) / 0.07)));
       const t = samp(tone, u, v);
@@ -124,20 +164,32 @@ export const getMoonTextures = () => {
     }
   // craters (power-law sizes), radii in pixels at the equator
   const r = rng(42);
-  const addCrater = (cx: number, cy: number, rad: number, depth: number, fresh: number) => {
+  const addCrater = (
+    cx: number,
+    cy: number,
+    rad: number,
+    depth: number,
+    fresh: number,
+  ) => {
     const lat = Math.cos((cy / H - 0.5) * Math.PI);
     const rx = Math.min(W / 2, (rad * 2.7) / Math.max(0.08, lat));
     const ry = rad * 2.7;
-    for (let y = Math.max(0, Math.floor(cy - ry)); y < Math.min(H, Math.ceil(cy + ry)); y++) {
+    for (
+      let y = Math.max(0, Math.floor(cy - ry));
+      y < Math.min(H, Math.ceil(cy + ry));
+      y++
+    ) {
       const la = Math.cos((y / H - 0.5) * Math.PI);
       for (let xx = Math.floor(cx - rx); xx < Math.ceil(cx + rx); xx++) {
         const x = ((xx % W) + W) % W;
-        const dx = (xx - cx) * la, dy = y - cy;
+        const dx = (xx - cx) * la,
+          dy = y - cy;
         const d = Math.sqrt(dx * dx + dy * dy) / rad;
         if (d > 2.7) continue;
         const i = y * W + x;
         h[i] += depth * craterProfile(d, fresh);
-        if (fresh > 0.6) alb[i] += 0.12 * fresh * Math.max(0, 1 - Math.abs(d - 1.05) / 0.7);
+        if (fresh > 0.6)
+          alb[i] += 0.12 * fresh * Math.max(0, 1 - Math.abs(d - 1.05) / 0.7);
         else if (d < 1) alb[i] -= 0.03;
       }
     }
@@ -146,21 +198,27 @@ export const getMoonTextures = () => {
     const u = r();
     const rad = 1.2 + 40 * Math.pow(u, 9) + 2.2 * r();
     // fewer craters on the maria (smooth dark plains)
-    const cx = r() * W, cy = (Math.acos(1 - 2 * r()) / Math.PI) * H;
+    const cx = r() * W,
+      cy = (Math.acos(1 - 2 * r()) / Math.PI) * H;
     if (samp(maria, cx / W, cy / H) > 0.55 && r() < 0.7) continue;
     addCrater(cx, cy, rad, 0.35 + 0.4 * r(), r());
   }
-  for (let k = 0; k < 28; k++) addCrater(r() * W, (0.15 + 0.7 * r()) * H, 22 + 50 * r() * r(), 0.9, r());
+  for (let k = 0; k < 28; k++)
+    addCrater(r() * W, (0.15 + 0.7 * r()) * H, 22 + 50 * r() * r(), 0.9, r());
   // a few bright young craters with rays
   for (let k = 0; k < 4; k++) {
-    const cx = r() * W, cy = (0.25 + 0.5 * r()) * H, rad = 8 + 6 * r();
+    const cx = r() * W,
+      cy = (0.25 + 0.5 * r()) * H,
+      rad = 8 + 6 * r();
     addCrater(cx, cy, rad, 1.2, 1);
     for (let j = 0; j < 26; j++) {
-      const a = r() * Math.PI * 2, len = rad * (4 + 9 * r());
+      const a = r() * Math.PI * 2,
+        len = rad * (4 + 9 * r());
       for (let s = rad; s < len; s += 1) {
-        const px = Math.round(cx + Math.cos(a) * s), py = Math.round(cy + Math.sin(a) * s);
+        const px = Math.round(cx + Math.cos(a) * s),
+          py = Math.round(cy + Math.sin(a) * s);
         if (py < 0 || py >= H) continue;
-        const ii = py * W + ((px % W) + W) % W;
+        const ii = py * W + (((px % W) + W) % W);
         alb[ii] += 0.09 * (1 - s / len);
       }
     }
@@ -178,7 +236,10 @@ export const getMoonTextures = () => {
     img.data[i * 4 + 3] = 255;
   }
   g.putImageData(img, 0, 0);
-  moonCache = { map: toCanvasTex(c, true), normal: heightToNormal(h, W, H, 2.2, true, false) };
+  moonCache = {
+    map: toCanvasTex(c, true),
+    normal: heightToNormal(h, W, H, 2.2, true, false),
+  };
   return moonCache;
 };
 
@@ -194,24 +255,34 @@ const getGroundCraters = () => {
   const out: Crater[] = [];
   for (let k = 0; k < 260; k++) {
     const u = r();
-    out.push({ x: (r() - 0.5) * GROUND_SPAN, z: (r() - 0.5) * GROUND_SPAN, r: 1.5 + 22 * Math.pow(u, 5) + 2 * r(), d: 0.22 + 0.12 * r() });
+    out.push({
+      x: (r() - 0.5) * GROUND_SPAN,
+      z: (r() - 0.5) * GROUND_SPAN,
+      r: 1.5 + 22 * Math.pow(u, 5) + 2 * r(),
+      d: 0.13 + 0.08 * r(),
+    });
   }
   groundCraters = out.filter((c) => Math.hypot(c.x, c.z) > c.r * 2.8 + 16); // keep the impact site clear
   return groundCraters;
 };
-export const groundHeight = (x: number, z: number) => {
-  let y = 1.6 * (fbm(x * 0.012 + 3, z * 0.012 + 9, 0.5, 4) - 0.5) + 0.35 * (fbm(x * 0.08, z * 0.08, 2.5, 3) - 0.5);
+// cw = crater weight (the far, coarser part of the terrain mesh uses softened craters)
+export const groundHeight = (x: number, z: number, cw = 1) => {
+  let y =
+    1.6 * (fbm(x * 0.012 + 3, z * 0.012 + 9, 0.5, 4) - 0.5) +
+    0.35 * (fbm(x * 0.08, z * 0.08, 2.5, 3) - 0.5);
   for (const c of getGroundCraters()) {
-    let dx = x - c.x, dz = z - c.z;
+    let dx = x - c.x,
+      dz = z - c.z;
     dx -= Math.round(dx / GROUND_SPAN) * GROUND_SPAN;
     dz -= Math.round(dz / GROUND_SPAN) * GROUND_SPAN;
     const d = Math.sqrt(dx * dx + dz * dz) / c.r;
-    if (d < 2.7) y += c.r * c.d * craterProfile(d, 0.5);
+    if (d < 2.7) y += cw * c.r * c.d * craterProfile(d, 0.5);
   }
   return y;
 };
 
-let regCache: { map: THREE.CanvasTexture; normal: THREE.CanvasTexture } | null = null;
+let regCache: { map: THREE.CanvasTexture; normal: THREE.CanvasTexture } | null =
+  null;
 // fine detail texture (small pebbles / micro craters), tiled many times
 export const getRegolithTextures = () => {
   if (regCache) return regCache;
@@ -220,16 +291,28 @@ export const getRegolithTextures = () => {
   const alb = new Float32Array(W * W);
   for (let y = 0; y < W; y++)
     for (let x = 0; x < W; x++) {
-      const a = (x / W) * Math.PI * 2, b = (y / W) * Math.PI * 2;
+      const a = (x / W) * Math.PI * 2,
+        b = (y / W) * Math.PI * 2;
       // torus-mapped noise -> seamless tiling
-      const n = fbm(Math.cos(a) * 3 + 5, Math.sin(a) * 3 + Math.cos(b) * 3, Math.sin(b) * 3 + 1, 5);
-      const n2 = vnoise(Math.cos(a) * 40, Math.sin(a) * 40 + Math.cos(b) * 40, Math.sin(b) * 40);
+      const n = fbm(
+        Math.cos(a) * 3 + 5,
+        Math.sin(a) * 3 + Math.cos(b) * 3,
+        Math.sin(b) * 3 + 1,
+        5,
+      );
+      const n2 = vnoise(
+        Math.cos(a) * 40,
+        Math.sin(a) * 40 + Math.cos(b) * 40,
+        Math.sin(b) * 40,
+      );
       h[y * W + x] = n * 0.8 + n2 * 0.25;
       alb[y * W + x] = 0.55 + 0.25 * (n - 0.5) + 0.12 * (n2 - 0.5);
     }
   const r = rng(99);
   for (let k = 0; k < 900; k++) {
-    const cx = r() * W, cy = r() * W, rad = 2 + 14 * Math.pow(r(), 4);
+    const cx = r() * W,
+      cy = r() * W,
+      rad = 2 + 14 * Math.pow(r(), 4);
     const R = rad * 2.7;
     for (let y = Math.floor(cy - R); y < cy + R; y++)
       for (let x = Math.floor(cx - R); x < cx + R; x++) {
@@ -241,7 +324,9 @@ export const getRegolithTextures = () => {
   }
   // pebbles
   for (let k = 0; k < 2500; k++) {
-    const cx = r() * W, cy = r() * W, rad = 0.8 + 2.5 * r() * r();
+    const cx = r() * W,
+      cy = r() * W,
+      rad = 0.8 + 2.5 * r() * r();
     for (let y = Math.floor(cy - rad); y <= cy + rad; y++)
       for (let x = Math.floor(cx - rad); x <= cx + rad; x++) {
         const d = Math.hypot(x - cx, y - cy) / rad;
@@ -258,9 +343,9 @@ export const getRegolithTextures = () => {
   const img = g.createImageData(W, W);
   for (let i = 0; i < W * W; i++) {
     const a = Math.max(0, Math.min(1, alb[i] + 0.05 * (hash3(i, 1, 9) - 0.5)));
-    img.data[i * 4] = a * 236;
-    img.data[i * 4 + 1] = a * 230;
-    img.data[i * 4 + 2] = a * 222;
+    img.data[i * 4] = a * 228;
+    img.data[i * 4 + 1] = a * 228;
+    img.data[i * 4 + 2] = a * 228;
     img.data[i * 4 + 3] = 255;
   }
   g.putImageData(img, 0, 0);
@@ -281,7 +366,8 @@ const skinCache = new Map<string, THREE.CanvasTexture>();
 export const getStageSkin = (variant: "modern" | "apollo") => {
   const hit = skinCache.get(variant);
   if (hit) return hit;
-  const W = 1024, H = 1024;
+  const W = 1024,
+    H = 1024;
   const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
@@ -326,13 +412,15 @@ export const getStageSkin = (variant: "modern" | "apollo") => {
     }
     // small access hatches
     g.fillStyle = "#4a4f56";
-    for (let k = 0; k < 8; k++) g.fillRect(r() * W, H * (0.1 + 0.8 * r()), 26 + 30 * r(), 18 + 20 * r());
+    for (let k = 0; k < 8; k++)
+      g.fillRect(r() * W, H * (0.1 + 0.8 * r()), 26 + 30 * r(), 18 + 20 * r());
   } else {
     // Apollo-era roll pattern: black quarters near the aft end + forward ring
     band(0.0, 0.08, "#1d1d1d");
     band(0.9, 1.0, "#d9d6cc");
     g.fillStyle = "#1d1d1d";
-    for (const u of [0, 0.5]) g.fillRect(u * W, H * (1 - 0.32), W * 0.25, H * 0.24);
+    for (const u of [0, 0.5])
+      g.fillRect(u * W, H * (1 - 0.32), W * 0.25, H * 0.24);
     band(0.94, 0.97, "#1d1d1d");
   }
   // soot / weathering towards the engine end
@@ -360,7 +448,9 @@ export const getSoftSprite = (kind: "dot" | "puff" | "glow") => {
   if (kind === "puff") {
     const r = rng(3);
     for (let i = 0; i < 40; i++) {
-      const x = S / 2 + (r() - 0.5) * S * 0.45, y = S / 2 + (r() - 0.5) * S * 0.45, rad = S * (0.12 + 0.18 * r());
+      const x = S / 2 + (r() - 0.5) * S * 0.45,
+        y = S / 2 + (r() - 0.5) * S * 0.45,
+        rad = S * (0.12 + 0.18 * r());
       const gr = g.createRadialGradient(x, y, 0, x, y, rad);
       gr.addColorStop(0, "rgba(255,255,255,0.22)");
       gr.addColorStop(1, "rgba(255,255,255,0)");
@@ -430,7 +520,8 @@ export const getFuelIcon = () => {
 
 // environment map: black space, a hard white sun and a faint moon glow (reflections on metal)
 export const makeSpaceEnv = (sunDir: THREE.Vector3) => {
-  const W = 512, H = 256;
+  const W = 512,
+    H = 256;
   const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
@@ -444,7 +535,11 @@ export const makeSpaceEnv = (sunDir: THREE.Vector3) => {
     return [u * W, v * H] as const;
   };
   const [sx, sy] = pos(sunDir.clone().normalize());
-  for (const [rad, col] of [[60, "rgba(255,200,150,0.25)"], [18, "rgba(255,240,220,0.9)"], [7, "rgba(255,255,255,1)"]] as const) {
+  for (const [rad, col] of [
+    [60, "rgba(255,200,150,0.25)"],
+    [18, "rgba(255,240,220,0.9)"],
+    [7, "rgba(255,255,255,1)"],
+  ] as const) {
     const gr = g.createRadialGradient(sx, sy, 0, sx, sy, rad);
     gr.addColorStop(0, col);
     gr.addColorStop(1, "rgba(0,0,0,0)");

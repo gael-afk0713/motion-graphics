@@ -1,5 +1,12 @@
 import React from "react";
-import { AbsoluteFill, interpolate, random, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  interpolate,
+  random,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { FONT, SAFE_Y } from "../venus/Overlays";
 import { BLOCKS, PUNCHES } from "./captions";
 import { IMPACT, IMPACT5, S, sceneEnd, sceneOf } from "./timeline";
@@ -10,7 +17,14 @@ const KEY = "#FFD23F";
 const O = 5;
 const outline =
   [
-    [O, 0], [-O, 0], [0, O], [0, -O], [O * 0.7, O * 0.7], [-O * 0.7, O * 0.7], [O * 0.7, -O * 0.7], [-O * 0.7, -O * 0.7],
+    [O, 0],
+    [-O, 0],
+    [0, O],
+    [0, -O],
+    [O * 0.7, O * 0.7],
+    [-O * 0.7, O * 0.7],
+    [O * 0.7, -O * 0.7],
+    [-O * 0.7, -O * 0.7],
   ]
     .map(([x, y]) => `${x}px ${y}px 0 #0b1c22`)
     .join(", ") + ", 0 10px 26px rgba(0,0,0,0.55)";
@@ -27,9 +41,18 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
   const b = BLOCKS[index];
   const next = index + 1 < BLOCKS.length ? BLOCKS[index + 1].start : Infinity;
   if (frame < b.start || frame >= next) return null;
-  const out = Number.isFinite(next) ? interpolate(frame, [next - 3, next], [1, 0], clamp) : 1;
+  const out = Number.isFinite(next)
+    ? interpolate(frame, [next - 3, next], [1, 0], clamp)
+    : 1;
   // the whole block appears at once (the first one is already complete on frame 0)
-  const enter = b.start === 0 ? 1 : spring({ frame: frame - b.start + 1, fps, config: { damping: 16, stiffness: 260, mass: 0.5 } });
+  const enter =
+    b.start === 0
+      ? 1
+      : spring({
+          frame: frame - b.start + 1,
+          fps,
+          config: { damping: 16, stiffness: 260, mass: 0.5 },
+        });
   const lines = [...new Set(b.words.map((w) => w.line))];
   return (
     <div
@@ -48,13 +71,27 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
       }}
     >
       {lines.map((li) => (
-        <div key={li} style={{ display: "flex", justifyContent: "center", alignItems: "baseline", columnGap: b.size * (b.side < 80 ? 0.3 : 0.38), whiteSpace: "nowrap" }}>
+        <div
+          key={li}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "baseline",
+            columnGap: b.size * (b.side < 80 ? 0.3 : 0.38),
+            whiteSpace: "nowrap",
+          }}
+        >
           {b.words
             .filter((w) => w.line === li)
             .map((w, i) => {
               // karaoke highlight while the word is being spoken
               const end = Math.max(w.endAt, w.spokenAt + 3);
-              const on = interpolate(frame, [w.spokenAt - 2, w.spokenAt + 1, end - 1, end + 2], [0, 1, 1, 0], clamp);
+              const on = interpolate(
+                frame,
+                [w.spokenAt - 2, w.spokenAt + 1, end - 1, end + 2],
+                [0, 1, 1, 0],
+                clamp,
+              );
               const pop = w.key ? 0.15 * hop(frame, w.spokenAt - 1) : 0;
               return (
                 <span
@@ -121,14 +158,33 @@ export const whip = (frame: number) => {
 
 const flashAmount = (frame: number) => {
   let a = 0;
-  for (const B of FLASH_AT) a = Math.max(a, interpolate(frame, [B - 3, B, B + 6], [0, 1, 0], clamp));
+  for (const B of FLASH_AT)
+    a = Math.max(a, interpolate(frame, [B - 3, B, B + 6], [0, 1, 0], clamp));
   // impacts
-  a = Math.max(a, interpolate(frame, [IMPACT - 1, IMPACT, IMPACT + 1, IMPACT + 7], [0, 1, 0.85, 0], clamp));
-  a = Math.max(a, interpolate(frame, [IMPACT5 - 1, IMPACT5, IMPACT5 + 7], [0, 0.75, 0], clamp));
+  a = Math.max(
+    a,
+    interpolate(
+      frame,
+      [IMPACT - 1, IMPACT, IMPACT + 1, IMPACT + 7],
+      [0, 1, 0.85, 0],
+      clamp,
+    ),
+  );
+  a = Math.max(
+    a,
+    interpolate(
+      frame,
+      [IMPACT5 - 1, IMPACT5, IMPACT5 + 7],
+      [0, 0.75, 0],
+      clamp,
+    ),
+  );
   return a;
 };
 
-export const CameraLayer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CameraLayer: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const frame = useCurrentFrame();
   const sc = sceneOf(frame);
   const p = punch(frame);
@@ -140,7 +196,9 @@ export const CameraLayer: React.FC<{ children: React.ReactNode }> = ({ children 
   const flick = film ? 0.92 + 0.12 * random(`fl${frame}`) : 1;
   const filters = [
     w.blur > 0 ? "url(#whipBlur)" : "",
-    film ? `sepia(0.75) saturate(0.6) contrast(1.25) brightness(${flick})` : "contrast(1.14) saturate(1.12)",
+    film
+      ? `sepia(0.75) saturate(0.6) contrast(1.25) brightness(${flick})`
+      : "contrast(1.14) saturate(1.12)",
   ].join(" ");
   return (
     <AbsoluteFill style={{ overflow: "hidden", backgroundColor: "#000" }}>
@@ -167,20 +225,35 @@ export const Grade: React.FC = () => {
   const sc = sceneOf(frame);
   const film = sc === 4;
   const fl = flashAmount(frame);
-  const warmFlash = FLASH_AT.some((B) => Math.abs(frame - B) < 6) && frame >= S[4] - 3 && frame < S[4] + 6;
+  const warmFlash =
+    FLASH_AT.some((B) => Math.abs(frame - B) < 6) &&
+    frame >= S[4] - 3 &&
+    frame < S[4] + 6;
   return (
     <>
-      {!film && (
+      {!film && sc !== 3 && (
         <AbsoluteFill
           style={{
             mixBlendMode: "soft-light",
-            background: "linear-gradient(100deg, rgba(40,90,190,0.55) 0%, rgba(40,90,190,0.15) 45%, rgba(255,150,60,0.35) 80%, rgba(255,140,50,0.5) 100%)",
+            background:
+              "linear-gradient(100deg, rgba(40,90,190,0.55) 0%, rgba(40,90,190,0.15) 45%, rgba(255,150,60,0.35) 80%, rgba(255,140,50,0.5) 100%)",
           }}
         />
       )}
-      <AbsoluteFill style={{ background: `radial-gradient(ellipse at 50% 48%, rgba(0,0,0,0) ${film ? 38 : 52}%, rgba(0,0,0,${film ? 0.85 : 0.55}) 100%)` }} />
+      <AbsoluteFill
+        style={{
+          background: `radial-gradient(ellipse at 50% 48%, rgba(0,0,0,0) ${film ? 38 : 52}%, rgba(0,0,0,${film ? 0.85 : 0.55}) 100%)`,
+        }}
+      />
       {film && <FilmGrain />}
-      {fl > 0 && <AbsoluteFill style={{ backgroundColor: warmFlash ? "#fff1d0" : "#ffffff", opacity: fl }} />}
+      {fl > 0 && (
+        <AbsoluteFill
+          style={{
+            backgroundColor: warmFlash ? "#fff1d0" : "#ffffff",
+            opacity: fl,
+          }}
+        />
+      )}
     </>
   );
 };
@@ -192,9 +265,24 @@ const FilmGrain: React.FC = () => {
   const blotch = random(`b${frame}`) > 0.8;
   return (
     <>
-      <svg width="100%" height="100%" style={{ position: "absolute", inset: 0, mixBlendMode: "overlay", opacity: 0.55 }}>
+      <svg
+        width="100%"
+        height="100%"
+        style={{
+          position: "absolute",
+          inset: 0,
+          mixBlendMode: "overlay",
+          opacity: 0.55,
+        }}
+      >
         <filter id={`grain${frame}`}>
-          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves={2} seed={seed} stitchTiles="stitch" />
+          <feTurbulence
+            type="fractalNoise"
+            baseFrequency="0.85"
+            numOctaves={2}
+            seed={seed}
+            stitchTiles="stitch"
+          />
           <feColorMatrix type="saturate" values="0" />
         </filter>
         <rect width="100%" height="100%" filter={`url(#grain${frame})`} />
@@ -225,8 +313,18 @@ const FilmGrain: React.FC = () => {
           }}
         />
       )}
-      <AbsoluteFill style={{ backgroundColor: "rgba(150,110,40,0.2)", mixBlendMode: "multiply" }} />
-      <AbsoluteFill style={{ backgroundColor: "rgba(70,50,20,0.22)", mixBlendMode: "screen" }} />
+      <AbsoluteFill
+        style={{
+          backgroundColor: "rgba(150,110,40,0.2)",
+          mixBlendMode: "multiply",
+        }}
+      />
+      <AbsoluteFill
+        style={{
+          backgroundColor: "rgba(70,50,20,0.22)",
+          mixBlendMode: "screen",
+        }}
+      />
     </>
   );
 };
