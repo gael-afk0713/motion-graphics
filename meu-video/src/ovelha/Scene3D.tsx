@@ -4,7 +4,7 @@ import React, { useMemo } from "react";
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import * as THREE from "three";
 import { getLesmaTextures, rng } from "../lesma/textures";
-import { CERATA, makeSSS, Sheep } from "./Sheep";
+import { makeSSS, Sheep } from "./Sheep";
 import { FPS, S, SCENE_DURATIONS, sceneEnd, sceneOf } from "./timeline";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
@@ -19,7 +19,7 @@ type Pose = { p: V3; t: V3 };
 const SHOTS: { a: Pose; b: Pose }[] = [
   { a: { p: [0, 0.95, 6.4], t: [0, 0.62, 0] }, b: { p: [0.25, 0.9, 5.8], t: [0, 0.6, 0] } }, // 1 front close-up
   { a: { p: [0, 0.85, 6.2], t: [0, 0.52, 0.9] }, b: { p: [0, 0.75, 5.3], t: [0, 0.52, 0.9] } }, // 2 medium close on the face
-  { a: { p: [4.4, 0.6, 3.6], t: [-0.3, 0.45, 0.5] }, b: { p: [12.35, 0.85, 9.73], t: [-0.61, 0.45, 0.73] } }, // 3 side view with the rice grain
+  { a: { p: [5.3, 1.15, 7.6], t: [0.65, 0.45, -0.35] }, b: { p: [6.45, 1.25, 10.0], t: [0.5, 0.45, -0.25] } }, // 3 side view with the rice grain
   { a: { p: [5.2, 4.7, 6.8], t: [0.2, 0.3, 0.4] }, b: { p: [4.7, 4.3, 6.3], t: [0.2, 0.3, 0.45] } }, // 4 3/4 from above, whole sheep
   { a: { p: [-1.6, 0.55, 4.6], t: [0, 0.7, 0] }, b: { p: [-1.0, 0.75, 4.0], t: [0, 0.75, 0] } }, // 5 backlit leaves
   { a: { p: [0, 0.95, 6.0], t: [0, 0.6, 0] }, b: { p: [0, 0.85, 5.2], t: [0, 0.55, 0] } }, // 6 fading
@@ -312,74 +312,48 @@ const Particles: React.FC<{ frame: number; n: number; seed: number; box: [V3, V3
 // Foreground props (sharp layer)
 // ---------------------------------------------------------------------------
 const PLATFORM = { R: 5.6, spread: 3.3 };
-const LeafPlatform: React.FC = () => {
+const LeafPlatform: React.FC<{ edgeAtMouth: boolean }> = ({ edgeAtMouth }) => {
   const geo = useMemo(() => fanGeometry(PLATFORM.R, PLATFORM.spread, 5, 0.25), []);
   const mat = useMemo(() => velvet("#6b7a3a"), []);
+  const green = useMemo(() => velvet("#5f9a2e"), []);
   // lying flat, apex behind her, opening towards the camera
-  return <mesh geometry={geo} material={mat} position={[0, 0.03, -2.9]} rotation={[Math.PI / 2, 0, 0]} />;
+  return <mesh geometry={geo} material={edgeAtMouth ? green : mat} position={[0, 0.03, edgeAtMouth ? -3.75 : -2.9]} rotation={[Math.PI / 2, 0, 0]} />;
 };
 
-// Rice grain: elongated (3:1), pearly white, slightly translucent, soft sheen.
-// Same length as the sea sheep, lying on the sand next to her (along z).
-const RICE_LEN = 2.35;
-// camera of scene 3 looks along -VIEW; the grain lies along PERP (perpendicular
-// to the view) next to her, so both are at the same distance from the camera
-const VIEW = new THREE.Vector3(0.82, 0, 0.57).normalize();
-const PERP = new THREE.Vector3(-VIEW.z, 0, VIEW.x);
-const RICE_POS = new THREE.Vector3(0, 0, -0.15).addScaledVector(PERP, 2.55);
-const RICE_YAW = Math.atan2(PERP.x, PERP.z);
-const riceGeometry = () => {
-  const pts: THREE.Vector2[] = [];
-  const n = 40;
-  for (let i = 0; i <= n; i++) {
-    const t = i / n;
-    // blunt, slightly asymmetric grain profile
-    const r = (RICE_LEN / 6) * Math.pow(Math.sin(Math.PI * t), 0.38) * (1 - 0.06 * t);
-    pts.push(new THREE.Vector2(Math.max(r, 0.0001), (t - 0.5) * RICE_LEN));
-  }
-  return new THREE.LatheGeometry(pts, 48);
-};
+// Rice grain: a capsule (length = 3 x width, rounded ends), pearly white,
+// slightly translucent, soft sheen. Same length as her body, lying on the sand
+// right against her side (camera side), shifted back so her face stays visible.
+const RICE_LEN = 2.7;
+const RICE_R = RICE_LEN / 6; // width = 2r = length / 3
 const RiceGrain: React.FC = () => {
-  const geo = useMemo(riceGeometry, []);
   const mat = useMemo(() => {
-    const m = makeSSS({ base: "#fdfaf3", deep: "#e7dfcd", rim: "#ffffff", rimAmt: 0.6 });
+    const m = makeSSS({ base: "#fdfaf3", deep: "#e6ddca", rim: "#ffffff", rimAmt: 0.6 });
     m.uniforms.uBack.value = 0.9;
     return m;
   }, []);
   const gloss = useMemo(
-    () => new THREE.MeshPhysicalMaterial({ color: "#ffffff", transparent: true, opacity: 0.16, roughness: 0.18, clearcoat: 1, clearcoatRoughness: 0.15, depthWrite: false }),
+    () => new THREE.MeshPhysicalMaterial({ color: "#ffffff", transparent: true, opacity: 0.18, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.12, depthWrite: false }),
     [],
   );
-  const R = RICE_LEN / 6;
   return (
-    <group position={[RICE_POS.x, R * 0.92, RICE_POS.z]} rotation={[0, RICE_YAW, 0]}>
-      <group rotation={[Math.PI / 2, 0, 0]} scale={[1, 1, 0.9]}>
-        <mesh geometry={geo} material={mat} />
-        <mesh geometry={geo} material={gloss} scale={1.004} />
-      </group>
+    <group position={[1.3, RICE_R, -0.45]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh material={mat}>
+        <capsuleGeometry args={[RICE_R, RICE_LEN - 2 * RICE_R, 24, 40]} />
+      </mesh>
+      <mesh material={gloss} scale={1.004}>
+        <capsuleGeometry args={[RICE_R, RICE_LEN - 2 * RICE_R, 24, 40]} />
+      </mesh>
     </group>
   );
 };
 
 // Chloroplast capsules: leaf -> mouth (scene 4), head -> into the leaves (scene 5)
-const N_CAP = 26;
-const CAPS = (() => {
-  const r = rng(13);
-  const t4a = S[3] + 18, t4b = sceneEnd(3) - 26;
-  const t5a = S[4] + 6, t5b = S[4] + 110;
-  return Array.from({ length: N_CAP }, (_, j) => ({
-    from: new THREE.Vector3(-0.3 + r() * 0.6, 0.03, 1.35 + r() * 0.45),
-    eatAt: t4a + ((t4b - t4a) * j) / (N_CAP - 1),
-    goAt: t5a + ((t5b - t5a) * j) / (N_CAP - 1),
-    target: CERATA[Math.floor(r() * CERATA.length)],
-    k: 0.45 + r() * 0.35,
-  }));
-})();
 const MOUTH = new THREE.Vector3(0, 0.2, 1.12);
 
-const TRAIL_FROM = new THREE.Vector3(0.62, 0.07, 2.15);
-const TRAIL_CTRL = new THREE.Vector3(0.38, 0.62, 1.75);
-const N_TRAIL = 11;
+// from the leaf edge beside her mouth, rising sideways INTO the mouth
+const TRAIL_FROM = new THREE.Vector3(0.95, 0.09, 1.0);
+const TRAIL_CTRL = new THREE.Vector3(0.62, 0.42, 1.38);
+const N_TRAIL = 8;
 const trailPoint = (k: number, out: THREE.Vector3) => {
   const a = (1 - k) * (1 - k), b = 2 * (1 - k) * k, c = k * k;
   return out.set(
@@ -401,10 +375,11 @@ const ChloroTrail: React.FC<{ frame: number }> = ({ frame }) => {
   const on = interpolate(frame, [S[3] + 6, S[3] + 14, sceneEnd(3) - 10, sceneEnd(3) - 2], [0, 1, 1, 0], clamp);
   const d = new THREE.Object3D();
   for (let j = 0; j < N_TRAIL; j++) {
-    const k = ((frame - S[3]) / 44 + j / N_TRAIL) % 1;
+    const k = ((frame - S[3]) / 36 + j / N_TRAIL) % 1;
     trailPoint(k, d.position);
-    const s = on * Math.min(1, k / 0.08) * (k > 0.9 ? (1 - k) / 0.1 : 1);
-    d.scale.set(0.07 * s, 0.048 * s, 0.048 * s);
+    // grows as it leaves the alga, shrinks as it goes into the mouth
+    const s = on * Math.min(1, k / 0.2) * (k > 0.82 ? Math.max(0, (1 - k) / 0.18) : 1);
+    d.scale.set(0.058 * s, 0.04 * s, 0.04 * s);
     d.updateMatrix();
     mesh.setMatrixAt(j, d.matrix);
   }
@@ -415,45 +390,11 @@ const ChloroTrail: React.FC<{ frame: number }> = ({ frame }) => {
       <primitive object={mesh} />
       {/* glowing spot on the alga where the chloroplasts come out */}
       <mesh position={[TRAIL_FROM.x, 0.075, TRAIL_FROM.z]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.16, 24]} />
-        <meshBasicMaterial color="#9dff8a" transparent opacity={0.45 * on} depthWrite={false} blending={THREE.AdditiveBlending} />
+        <circleGeometry args={[0.13, 24]} />
+        <meshBasicMaterial color="#9dff8a" transparent opacity={0.3 * on} depthWrite={false} blending={THREE.AdditiveBlending} />
       </mesh>
     </>
   );
-};
-
-const Capsules: React.FC<{ frame: number }> = ({ frame }) => {
-  const mesh = useMemo(() => {
-    const m = new THREE.InstancedMesh(
-      new THREE.SphereGeometry(1, 14, 10),
-      new THREE.MeshStandardMaterial({ color: "#7dff7a", emissive: "#2fd34a", emissiveIntensity: 0.9, roughness: 0.3 }),
-      N_CAP,
-    );
-    m.frustumCulled = false;
-    return m;
-  }, []);
-  const d = new THREE.Object3D();
-  const p = new THREE.Vector3();
-  let any = false;
-  CAPS.forEach((c, j) => {
-    let s = 0;
-    // scene 5: from the head up into the dorsal leaves
-    if (frame >= c.goAt && frame < c.goAt + 30) {
-      const k = ease((frame - c.goAt) / 30);
-      const dest = c.target.base.clone().lerp(c.target.tip, c.k);
-      p.copy(new THREE.Vector3(0, 0.45, 0.8)).lerp(dest, k);
-      p.y += Math.sin(k * Math.PI) * 0.3;
-      s = k < 0.8 ? 1 : (1 - k) / 0.2;
-    }
-    if (s > 0) any = true;
-    d.position.copy(p);
-    d.scale.set(0.06 * s, 0.04 * s, 0.04 * s);
-    d.updateMatrix();
-    mesh.setMatrixAt(j, d.matrix);
-  });
-  mesh.instanceMatrix.needsUpdate = true;
-  if (!any) return null;
-  return <primitive object={mesh} />;
 };
 
 // ---------------------------------------------------------------------------
@@ -520,7 +461,7 @@ export const OvelhaScene: React.FC = () => {
         <CameraRig frame={frame} />
         <Lights dir={dir} />
         <SandFloor frame={frame} y={-0.01} radius={6.5} size={16} />
-        {sand ? <RiceGrain /> : <LeafPlatform />}
+        {sand ? <RiceGrain /> : <LeafPlatform edgeAtMouth={sc === 3} />}
         <group position={[0, st.hop + (sand ? 0 : 0.06), 0]}>
           <Sheep
             t={st.t}
@@ -537,7 +478,6 @@ export const OvelhaScene: React.FC = () => {
           />
         </group>
         {sc === 3 && <ChloroTrail frame={frame} />}
-        {sc === 4 && <Capsules frame={frame} />}
         <Particles frame={frame} n={70} seed={8} box={[[-3, -0.2, -1], [3, 3, 4]]} size={0.025} opacity={0.6} />
       </ThreeCanvas>
     </>

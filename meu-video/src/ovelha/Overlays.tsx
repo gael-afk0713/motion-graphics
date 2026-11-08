@@ -40,7 +40,7 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
       }}
     >
       {lines.map((li) => (
-        <div key={li} style={{ display: "flex", justifyContent: "center", alignItems: "baseline", columnGap: b.size * 0.34, whiteSpace: "nowrap" }}>
+        <div key={li} style={{ display: "flex", justifyContent: "center", alignItems: "baseline", columnGap: b.size * 0.38, whiteSpace: "nowrap" }}>
           {b.words
             .filter((w) => w.line === li)
             .map((w, i) => {
@@ -55,7 +55,7 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
                     display: "inline-block",
                     color: base,
                     transformOrigin: "50% 80%", // grow from the baseline: words stay aligned
-                    scale: 1 + 0.08 * on,
+                    scale: 1 + 0.05 * on,
                     filter: `brightness(${1 + 0.25 * on})`,
                     textShadow: `${outline}, 0 0 ${28 * on}px ${w.key ? "rgba(255,210,63,0.85)" : "rgba(255,255,255,0.8)"}`,
                   }}
