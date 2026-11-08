@@ -20,7 +20,7 @@ const frag = /* glsl */ `
   uniform vec3 uBase; uniform vec3 uDeep; uniform vec3 uTip; uniform vec3 uRim;
   uniform vec3 uLightDir; uniform vec3 uLightCol; uniform vec3 uAmb; uniform vec3 uPaleCol;
   uniform float uTipStart; uniform float uDots; uniform float uGlow; uniform float uPale;
-  uniform float uBack; uniform float uSeed; uniform float uRimAmt;
+  uniform float uBack; uniform float uSeed; uniform float uRimAmt; uniform float uAlpha;
   varying vec3 vN; varying vec3 vWP; varying vec2 vUv; varying vec3 vLP;
   float hash(vec3 p){ p = fract(p*0.3183099 + 0.1); p *= 17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
   float cell(vec3 p){
@@ -56,7 +56,7 @@ const frag = /* glsl */ `
              + col * trans * uBack * uLightCol
              + rim * uRim * uRimAmt
              + col * uGlow;
-    gl_FragColor = vec4(lit, 1.0);
+    gl_FragColor = vec4(lit, uAlpha);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }`;
@@ -84,6 +84,7 @@ export const makeSSS = (o: MatOpts) =>
       uBack: { value: 0.6 },
       uSeed: { value: o.seed ?? 0 },
       uRimAmt: { value: o.rimAmt ?? 0.35 },
+      uAlpha: { value: 1 },
     },
   });
 

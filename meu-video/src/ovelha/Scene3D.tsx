@@ -20,7 +20,7 @@ const SHOTS: { a: Pose; b: Pose }[] = [
   { a: { p: [0, 0.95, 6.4], t: [0, 0.62, 0] }, b: { p: [0.25, 0.9, 5.8], t: [0, 0.6, 0] } }, // 1 front close-up
   { a: { p: [0, 0.85, 6.2], t: [0, 0.52, 0.9] }, b: { p: [0, 0.75, 5.3], t: [0, 0.52, 0.9] } }, // 2 medium close on the face
   { a: { p: [5.3, 1.15, 7.6], t: [0.65, 0.45, -0.35] }, b: { p: [6.45, 1.25, 10.0], t: [0.5, 0.45, -0.25] } }, // 3 side view with the rice grain
-  { a: { p: [5.2, 4.7, 6.8], t: [0.2, 0.3, 0.4] }, b: { p: [4.7, 4.3, 6.3], t: [0.2, 0.3, 0.45] } }, // 4 3/4 from above, whole sheep
+  { a: { p: [15.6, 2.26, 0.81], t: [0, 2.26, 0.81] }, b: { p: [14.82, 2.26, 0.81], t: [0, 2.26, 0.81] } }, // 4 side view, still camera, 5% zoom
   { a: { p: [-1.6, 0.55, 4.6], t: [0, 0.7, 0] }, b: { p: [-1.0, 0.75, 4.0], t: [0, 0.75, 0] } }, // 5 backlit leaves
   { a: { p: [0, 0.95, 6.0], t: [0, 0.6, 0] }, b: { p: [0, 0.85, 5.2], t: [0, 0.55, 0] } }, // 6 fading
   { a: { p: [0.3, 0.95, 6.2], t: [0, 0.62, 0] }, b: { p: [-0.2, 0.9, 5.7], t: [0, 0.62, 0] } }, // 7 happy
@@ -41,7 +41,7 @@ export const cameraPose = (f: number): Pose => {
   }
   // diver-like floating sway (smaller in the extreme eye close-up)
   const t = f / FPS;
-  const amp = 1;
+  const amp = i === 3 ? 0 : 1; // scene 4: the camera stands still
   const sway: V3 = [0.06 * Math.sin(t * 0.6) * amp, 0.045 * Math.sin(t * 0.83 + 1) * amp, 0.05 * Math.sin(t * 0.5 + 2) * amp];
   return { p: [pose.p[0] + sway[0], pose.p[1] + sway[1], pose.p[2] + sway[2]], t: [pose.t[0] + sway[0] * 0.4, pose.t[1] + sway[1] * 0.4, pose.t[2]] };
 };
@@ -97,7 +97,7 @@ const WaterBackground: React.FC = () => {
 
 const causticsFrag = /* glsl */ `
   uniform float uTime; uniform vec3 uSand; uniform vec3 uWater; uniform float uRadius; uniform vec3 uCenter;
-  varying vec3 vWP;
+  varying vec3 vWP; varying vec3 vNW;
   void main(){
     vec2 uv = vWP.xz * 0.55;
     float t = uTime * 0.7;
@@ -108,7 +108,8 @@ const causticsFrag = /* glsl */ `
     float c = pow(0.5 + 0.5 * sin(uv.x * 5.5) * sin(uv.y * 5.5), 7.0);
     float grain = fract(sin(dot(floor(vWP.xz * 60.0), vec2(12.9898, 78.233))) * 43758.5453);
     vec3 col = uSand * (0.9 + 0.08 * sin(vWP.x * 3.0 + vWP.z * 2.0) * sin(vWP.z * 4.0) + 0.07 * (grain - 0.5));
-    col += c * vec3(1.0, 0.97, 0.82) * 0.55;
+    col += c * vec3(1.0, 0.97, 0.82) * 0.55 * smoothstep(0.3, 0.9, vNW.y);
+    col *= (0.62 + 0.38 * max(dot(normalize(vNW), normalize(vec3(-0.45, 1.0, 0.55))), 0.0)) / 0.96;
     float d = length(cameraPosition - vWP);
     col = mix(col, uWater, smoothstep(6.0, 26.0, d) * 0.85);
     float a = 1.0;
@@ -116,7 +117,7 @@ const causticsFrag = /* glsl */ `
     gl_FragColor = vec4(col, a);
     #include <colorspace_fragment>
   }`;
-const sandVert = `varying vec3 vWP; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vWP = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`;
+const sandVert = `varying vec3 vWP; varying vec3 vNW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vWP = w.xyz; vNW = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix*viewMatrix*w; }`;
 
 const makeSand = (radius: number) =>
   new THREE.ShaderMaterial({
@@ -312,87 +313,233 @@ const Particles: React.FC<{ frame: number; n: number; seed: number; box: [V3, V3
 // Foreground props (sharp layer)
 // ---------------------------------------------------------------------------
 const PLATFORM = { R: 5.6, spread: 3.3 };
-const LeafPlatform: React.FC<{ edgeAtMouth: boolean }> = ({ edgeAtMouth }) => {
+const LeafPlatform: React.FC = () => {
   const geo = useMemo(() => fanGeometry(PLATFORM.R, PLATFORM.spread, 5, 0.25), []);
   const mat = useMemo(() => velvet("#6b7a3a"), []);
-  const green = useMemo(() => velvet("#5f9a2e"), []);
   // lying flat, apex behind her, opening towards the camera
-  return <mesh geometry={geo} material={edgeAtMouth ? green : mat} position={[0, 0.03, edgeAtMouth ? -3.75 : -2.9]} rotation={[Math.PI / 2, 0, 0]} />;
+  return <mesh geometry={geo} material={mat} position={[0, 0.03, -2.9]} rotation={[Math.PI / 2, 0, 0]} />;
 };
 
-// Rice grain: a capsule (length = 3 x width, rounded ends), pearly white,
-// slightly translucent, soft sheen. Same length as her body, lying on the sand
-// right against her side (camera side), shifted back so her face stays visible.
+// ---------------------------------------------------------------------------
+// Scene 3: a real-looking rice grain
+// Same length as her body; height = half her body height; slightly flattened
+// oval cross-section, ends a little narrower; pearly, semi-translucent, with
+// subtle lengthwise grooves like raw rice.
+// ---------------------------------------------------------------------------
 const RICE_LEN = 2.7;
-const RICE_R = RICE_LEN / 6; // width = 2r = length / 3
+const RICE_W = 0.23; // half width
+const RICE_H = 0.165; // half height (body ~0.66 tall)
+const riceGeometry = () => {
+  const pts: THREE.Vector2[] = [];
+  const n = 48;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    // tapered towards both ends, one end a touch blunter (real grains are asymmetric)
+    const r = Math.pow(Math.sin(Math.PI * t), 0.62) * (1 - 0.08 * t);
+    pts.push(new THREE.Vector2(Math.max(r, 0.0001), (t - 0.5) * RICE_LEN));
+  }
+  const g = new THREE.LatheGeometry(pts, 64);
+  // three faint lengthwise grooves
+  const p = g.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), z = p.getZ(i);
+    const ang = Math.atan2(z, x);
+    const k = 1 - 0.05 * Math.pow(0.5 + 0.5 * Math.cos(6 * ang + 0.5), 14);
+    p.setX(i, x * k);
+    p.setZ(i, z * k);
+  }
+  g.computeVertexNormals();
+  return g;
+};
 const RiceGrain: React.FC = () => {
+  const geo = useMemo(riceGeometry, []);
   const mat = useMemo(() => {
-    const m = makeSSS({ base: "#fdfaf3", deep: "#e6ddca", rim: "#ffffff", rimAmt: 0.6 });
-    m.uniforms.uBack.value = 0.9;
+    const m = makeSSS({ base: "#fbf8f0", deep: "#cfc4ad", rim: "#ffffff", rimAmt: 0.5 });
+    m.uniforms.uBack.value = 1.1;
+    m.uniforms.uAlpha.value = 0.92; // semi-translucent
+    m.transparent = true;
     return m;
   }, []);
   const gloss = useMemo(
-    () => new THREE.MeshPhysicalMaterial({ color: "#ffffff", transparent: true, opacity: 0.18, roughness: 0.15, clearcoat: 1, clearcoatRoughness: 0.12, depthWrite: false }),
+    () => new THREE.MeshPhysicalMaterial({ color: "#ffffff", transparent: true, opacity: 0.14, roughness: 0.2, clearcoat: 1, clearcoatRoughness: 0.2, depthWrite: false }),
     [],
   );
+  // lathe axis (y) -> lying along z; local x = width, local z = height
   return (
-    <group position={[1.3, RICE_R, -0.45]} rotation={[Math.PI / 2, 0, 0]}>
-      <mesh material={mat}>
-        <capsuleGeometry args={[RICE_R, RICE_LEN - 2 * RICE_R, 24, 40]} />
-      </mesh>
-      <mesh material={gloss} scale={1.004}>
-        <capsuleGeometry args={[RICE_R, RICE_LEN - 2 * RICE_R, 24, 40]} />
-      </mesh>
+    <group position={[1.95, RICE_H, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
+      <group scale={[RICE_W, 1, RICE_H]}>
+        <mesh geometry={geo} material={mat} />
+        <mesh geometry={geo} material={gloss} scale={[1.01, 1.002, 1.01]} />
+      </group>
     </group>
   );
 };
 
-// Chloroplast capsules: leaf -> mouth (scene 4), head -> into the leaves (scene 5)
-const MOUTH = new THREE.Vector3(0, 0.2, 1.12);
+// ---------------------------------------------------------------------------
+// Scene 4: nibbling an upright Avrainvillea blade (side view)
+// Screen layout (camera at x=15.6, y=2.26, z=0.81, 195 px/unit at x=0):
+//   leaf x 80..470 px, y ~700..1400 px; mouth touching its right edge at ~(470, 1050)
+// She stands on a smooth sand dune (h=1.6) so her mouth reaches the blade's middle.
+// ---------------------------------------------------------------------------
+const DUNE_H = 1.6;
+const LEAF_EDGE_Z = 1.17; // blade's right edge (on screen) = where her mouth touches
+const MOUTH_Y = DUNE_H + 0.2;
+const duneHeight = (z: number) => {
+  const k = Math.min(1, Math.max(0, (z - 1.02) / 0.6));
+  return DUNE_H * (1 - k * k * (3 - 2 * k));
+};
+const Dune: React.FC<{ frame: number }> = ({ frame }) => {
+  const geo = useMemo(() => {
+    const nx = 120, nz = 320, X0 = -30, X1 = 2.6, Z0 = -16, Z1 = 9;
+    const pos: number[] = [];
+    const idx: number[] = [];
+    for (let j = 0; j <= nz; j++)
+      for (let i = 0; i <= nx; i++) {
+        const x = X0 + ((X1 - X0) * i) / nx, z = Z0 + ((Z1 - Z0) * j) / nz;
+        const kx = Math.min(1, Math.max(0, (x - 0.9) / 1.5));
+        pos.push(x, duneHeight(z) * (1 - kx * kx * (3 - 2 * kx)), z);
+      }
+    for (let j = 0; j < nz; j++)
+      for (let i = 0; i < nx; i++) {
+        const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+  }, []);
+  const mat = useMemo(() => makeSand(0), []);
+  mat.uniforms.uTime.value = frame / FPS;
+  return <mesh geometry={geo} material={mat} />;
+};
 
-// from the leaf edge beside her mouth, rising sideways INTO the mouth
-const TRAIL_FROM = new THREE.Vector3(0.95, 0.09, 1.0);
-const TRAIL_CTRL = new THREE.Vector3(0.62, 0.42, 1.38);
-const N_TRAIL = 8;
-const trailPoint = (k: number, out: THREE.Vector3) => {
-  const a = (1 - k) * (1 - k), b = 2 * (1 - k) * k, c = k * k;
-  return out.set(
-    a * TRAIL_FROM.x + b * TRAIL_CTRL.x + c * MOUTH.x,
-    a * TRAIL_FROM.y + b * TRAIL_CTRL.y + c * MOUTH.y,
-    a * TRAIL_FROM.z + b * TRAIL_CTRL.z + c * MOUTH.z,
+let bladeTex: THREE.CanvasTexture | null = null;
+const getBladeTex = () => {
+  if (bladeTex) return bladeTex;
+  const W = 512, H = 832;
+  const c = document.createElement("canvas");
+  c.width = W;
+  c.height = H;
+  const g = c.getContext("2d")!;
+  g.fillStyle = "#4E6B2E";
+  g.fillRect(0, 0, W, H);
+  const r = rng(51);
+  // velvety mottling + fine fibres
+  for (let i = 0; i < 70; i++) {
+    const x = r() * W, y = r() * H, rad = 20 + r() * 60;
+    const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+    const l = r() < 0.5;
+    gr.addColorStop(0, l ? "rgba(120,150,70,0.18)" : "rgba(30,45,15,0.2)");
+    gr.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = gr;
+    g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+  }
+  for (let i = 0; i < 3500; i++) {
+    const x = r() * W, y = r() * H;
+    g.strokeStyle = r() < 0.5 ? "rgba(140,170,90,0.12)" : "rgba(20,30,10,0.12)";
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + (r() - 0.5) * 2, y - 6 - r() * 8);
+    g.stroke();
+  }
+  // 5 fine, lighter veins fanning out from the base
+  g.lineCap = "round";
+  for (let k = 0; k < 5; k++) {
+    const a = -0.55 + (1.1 * k) / 4;
+    g.strokeStyle = "rgba(170,200,110,0.55)";
+    g.lineWidth = 4;
+    g.beginPath();
+    g.moveTo(W / 2, H);
+    g.quadraticCurveTo(W / 2 + Math.sin(a) * W * 0.25, H * 0.55, W / 2 + Math.sin(a) * W * 0.42, H * 0.08 + Math.abs(a) * H * 0.15);
+    g.stroke();
+  }
+  bladeTex = new THREE.CanvasTexture(c);
+  bladeTex.colorSpace = THREE.SRGBColorSpace;
+  // shape coords: x in [-2, 0], y in [0, 3.24]
+  bladeTex.repeat.set(0.5, 1 / 3.24);
+  bladeTex.offset.set(1, 0);
+  return bladeTex;
+};
+
+const BLADE_Y = 0.35; // blade is 2.0 wide x 3.24 tall
+const UprightBlade: React.FC<{ glow: number }> = ({ glow }) => {
+  const geo = useMemo(() => {
+    const sh = new THREE.Shape();
+    // rounded paddle / fan; right edge at x = 0 (this is where her mouth touches)
+    sh.moveTo(-1.0, 0);
+    sh.bezierCurveTo(-0.45, 0.02, -0.02, 0.6, 0, 1.45);
+    sh.bezierCurveTo(0.02, 2.4, -0.12, 3.05, -0.55, 3.2);
+    sh.bezierCurveTo(-0.85, 3.27, -1.15, 3.27, -1.45, 3.2);
+    sh.bezierCurveTo(-1.88, 3.05, -2.02, 2.4, -2.0, 1.45);
+    sh.bezierCurveTo(-1.98, 0.6, -1.55, 0.02, -1.0, 0);
+    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.025, bevelSegments: 3, curveSegments: 48 });
+    return g;
+  }, []);
+  const mat = useMemo(
+    () =>
+      new THREE.MeshPhysicalMaterial({
+        map: getBladeTex(),
+        color: "#ffffff",
+        emissiveMap: getBladeTex(),
+        emissive: new THREE.Color("#ffffff"),
+        emissiveIntensity: 0.55,
+        roughness: 1,
+        sheen: 1,
+        sheenColor: new THREE.Color("#9fb36a"),
+        sheenRoughness: 0.7,
+      }),
+    [],
+  );
+  const { dot } = getLesmaTextures();
+  return (
+    <group>
+      {/* blade standing upright; shape x -> world -z, extrusion -> world x */}
+      <group position={[-0.045, BLADE_Y, LEAF_EDGE_Z]} rotation={[0, Math.PI / 2, 0]}>
+        <mesh geometry={geo} material={mat} />
+      </group>
+      {/* short stalk planted in the sand */}
+      <mesh position={[0, BLADE_Y / 2, LEAF_EDGE_Z + 1.0]}>
+        <cylinderGeometry args={[0.07, 0.1, BLADE_Y + 0.05, 12]} />
+        <meshStandardMaterial color="#3d5224" roughness={1} />
+      </mesh>
+      {/* the edge glows light green where the mouth touches it */}
+      <sprite position={[0.12, MOUTH_Y, LEAF_EDGE_Z + 0.07]} scale={[0.42, 0.42, 1]}>
+        <spriteMaterial map={dot} color="#B8FF7A" transparent opacity={0.85 * glow} blending={THREE.AdditiveBlending} depthWrite={false} />
+      </sprite>
+    </group>
   );
 };
-const ChloroTrail: React.FC<{ frame: number }> = ({ frame }) => {
-  const mesh = useMemo(() => {
-    const m = new THREE.InstancedMesh(
-      new THREE.SphereGeometry(1, 14, 10),
-      new THREE.MeshStandardMaterial({ color: "#86ff7d", emissive: "#33d94f", emissiveIntensity: 1.0, roughness: 0.3 }),
-      N_TRAIL,
-    );
-    m.frustumCulled = false;
-    return m;
-  }, []);
-  const on = interpolate(frame, [S[3] + 6, S[3] + 14, sceneEnd(3) - 10, sceneEnd(3) - 2], [0, 1, 1, 0], clamp);
-  const d = new THREE.Object3D();
-  for (let j = 0; j < N_TRAIL; j++) {
-    const k = ((frame - S[3]) / 36 + j / N_TRAIL) % 1;
-    trailPoint(k, d.position);
-    // grows as it leaves the alga, shrinks as it goes into the mouth
-    const s = on * Math.min(1, k / 0.2) * (k > 0.82 ? Math.max(0, (1 - k) / 0.18) : 1);
-    d.scale.set(0.058 * s, 0.04 * s, 0.04 * s);
-    d.updateMatrix();
-    mesh.setMatrixAt(j, d.matrix);
+
+// one capsule at a time: leaf edge -> mouth, horizontal, <= 60 px, shrinking into the mouth
+const CAP_EVERY = 16;
+const CAP_TRAVEL = 20;
+const CAP_FIRST = S[3] + 16;
+const CAP_LAST = sceneEnd(3) - 26;
+export const capsuleArrivals = (() => {
+  const out: number[] = [];
+  for (let f = CAP_FIRST; f <= CAP_LAST; f += CAP_EVERY) out.push(f + CAP_TRAVEL);
+  return out;
+})();
+const NibbleCapsules: React.FC<{ frame: number; zOff: number }> = ({ frame, zOff }) => {
+  const caps: { z: number; s: number }[] = [];
+  for (let f0 = CAP_FIRST; f0 <= CAP_LAST; f0 += CAP_EVERY) {
+    const k = (frame - f0) / CAP_TRAVEL;
+    if (k < 0 || k >= 1) continue;
+    const start = LEAF_EDGE_Z + 0.3, end = LEAF_EDGE_Z - 0.04 + zOff; // ~60px at 195 px/unit
+    const z = start + (end - start) * ease(k);
+    const s = (k < 0.12 ? k / 0.12 : 1) * (k > 0.62 ? Math.max(0, (1 - k) / 0.38) : 1);
+    caps.push({ z, s });
   }
-  mesh.instanceMatrix.needsUpdate = true;
-  if (on <= 0) return null;
   return (
     <>
-      <primitive object={mesh} />
-      {/* glowing spot on the alga where the chloroplasts come out */}
-      <mesh position={[TRAIL_FROM.x, 0.075, TRAIL_FROM.z]} rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.13, 24]} />
-        <meshBasicMaterial color="#9dff8a" transparent opacity={0.3 * on} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
+      {caps.map((c, i) => (
+        <mesh key={i} position={[0.16, MOUTH_Y, c.z]} scale={[0.046 * c.s, 0.046 * c.s, 0.058 * c.s]}>
+          <sphereGeometry args={[1, 16, 12]} />
+          <meshStandardMaterial color="#8dff7f" emissive="#3ee05a" emissiveIntensity={1.1} roughness={0.3} />
+        </mesh>
+      ))}
     </>
   );
 };
@@ -401,6 +548,11 @@ const ChloroTrail: React.FC<{ frame: number }> = ({ frame }) => {
 // Character state per frame
 // ---------------------------------------------------------------------------
 const blinkAt = (f: number, at: number) => interpolate(f, [at, at + 3, at + 6], [0, 1, 0], clamp);
+
+const bump = (f: number, a: number, d: number) => (f >= a && f <= a + d ? Math.sin((Math.PI * (f - a)) / d) : 0);
+// scene 4: the head pulls back from the leaf and touches it again, twice, very lightly
+const nibbleZ = (f: number) => -0.08 * (bump(f, S[3] + 4, 14) + bump(f, S[3] + 52, 14));
+const leafPulse = (f: number) => capsuleArrivals.reduce((a, t) => a + (f >= t ? Math.max(0, 1 - (f - t) / 12) : 0), 0);
 
 const sheepState = (f: number) => {
   const sc = sceneOf(f);
@@ -415,9 +567,10 @@ const sheepState = (f: number) => {
   const earDroop = interpolate(f, [S[5] + 20, S[5] + 50, sceneEnd(5) - 2, sceneEnd(5) + 6], [0, 1, 1, 0], clamp);
   const lookDown = interpolate(f, [S[5] + 25, S[5] + 50, sceneEnd(5) - 2, sceneEnd(5) + 6], [0, 1, 1, 0], clamp);
   const mouth = sc === 5 ? -interpolate(f, [S[5] + 25, S[5] + 40], [0, 1], clamp) : sc === 6 ? interpolate(f, [S[6] + 4, S[6] + 14], [0, 1], clamp) : 0;
-  const nib = sc === 3 ? 0.55 * Math.pow(Math.max(0, Math.sin((2 * Math.PI * (f - S[3])) / 20)), 2) * interpolate(f, [S[3] + 8, S[3] + 16], [0, 1], clamp) : 0;
+  const nib = 0;
   const hop = sc === 6 ? Math.abs(Math.sin(((f - S[6]) / 30) * Math.PI * 1.6)) * 0.05 : 0;
-  return { t, pale, glow, back, blink, earWave, earDroop, lookDown, mouth, nibble: nib, hop };
+  const pulse = sc === 3 ? 0.4 * leafPulse(f) : 0;
+  return { t, pale, glow: glow + pulse, back, blink, earWave, earDroop, lookDown, mouth, nibble: nib, hop };
 };
 
 // ---------------------------------------------------------------------------
@@ -461,8 +614,16 @@ export const OvelhaScene: React.FC = () => {
         <CameraRig frame={frame} />
         <Lights dir={dir} />
         <SandFloor frame={frame} y={-0.01} radius={6.5} size={16} />
-        {sand ? <RiceGrain /> : <LeafPlatform edgeAtMouth={sc === 3} />}
-        <group position={[0, st.hop + (sand ? 0 : 0.06), 0]}>
+        {sand && <RiceGrain />}
+        {!sand && sc !== 3 && <LeafPlatform />}
+        {sc === 3 && (
+          <>
+            <Dune frame={frame} />
+            <UprightBlade glow={interpolate(frame, [S[3] + 6, S[3] + 14], [0, 1], clamp) * (0.75 + 0.25 * Math.sin(frame * 0.35))} />
+            <NibbleCapsules frame={frame} zOff={nibbleZ(frame)} />
+          </>
+        )}
+        <group position={[0, st.hop + (sc === 3 ? DUNE_H : sand ? 0 : 0.06), sc === 3 ? nibbleZ(frame) : 0]}>
           <Sheep
             t={st.t}
             blink={st.blink}
@@ -477,7 +638,6 @@ export const OvelhaScene: React.FC = () => {
             lookDown={st.lookDown}
           />
         </group>
-        {sc === 3 && <ChloroTrail frame={frame} />}
         <Particles frame={frame} n={70} seed={8} box={[[-3, -0.2, -1], [3, 3, 4]]} size={0.025} opacity={0.6} />
       </ThreeCanvas>
     </>
