@@ -102,6 +102,30 @@ const ceratasProfile = () => {
   return new THREE.LatheGeometry(pts, 20);
 };
 
+// Rhinophore ("ear"): thick base, tapering to a rounded tip, bent outwards/upwards.
+// The ear points along local +y; `side` flips the bend so both curl upwards.
+const EAR_LEN = 0.54;
+export const earGeometry = (side: number) => {
+  const pts: THREE.Vector2[] = [];
+  const n = 26;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    let r = 0.125 * (1 - 0.45 * t) * (1 + 0.1 * Math.sin(t * Math.PI));
+    if (t > 0.74) r *= Math.sqrt(Math.max(0, 1 - ((t - 0.74) / 0.26) ** 2));
+    pts.push(new THREE.Vector2(Math.max(r, 0.0001), t * EAR_LEN));
+  }
+  const g = new THREE.LatheGeometry(pts, 28);
+  const p = g.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i) / EAR_LEN;
+    // curl up (world up = -side * local x for these ear rotations) and slightly forward
+    p.setX(i, p.getX(i) - side * 0.075 * y * y);
+    p.setZ(i, p.getZ(i) + 0.05 * y * y);
+  }
+  g.computeVertexNormals();
+  return g;
+};
+
 const rand = (s: number) => () => {
   s |= 0;
   s = (s + 0x6d2b79f5) | 0;
@@ -170,10 +194,11 @@ export const Sheep: React.FC<SheepProps> = (p) => {
       makeSSS({ base: "#93d22a", deep: "#4c9316", tip: "#9f80ff", rim: "#d9ff9a", tipStart: 0.76, dots: 12, seed: i * 13.7, rimAmt: 0.3 }),
     );
     const body = makeSSS({ base: "#f3faee", deep: "#cfe7c2", rim: "#f4fff0", dots: 0, rimAmt: 0.45 });
-    const ear = makeSSS({ base: "#4c5d7f", deep: "#27314a", tip: "#6e81a6", rim: "#9fb3d9", tipStart: 0.7, rimAmt: 0.25 });
+    // velvety: very fine speckles + soft sheen at the rim; tip darker
+    const ear = makeSSS({ base: "#56688c", deep: "#2a3450", tip: "#1c2335", rim: "#b8c8e8", tipStart: 0.7, dots: 70, seed: 3, rimAmt: 0.55 });
     return { leaves, body, ear };
   }, []);
-  const geo = useMemo(() => ({ ceras: ceratasProfile() }), []);
+  const geo = useMemo(() => ({ ceras: ceratasProfile(), earL: earGeometry(-1), earR: earGeometry(1) }), []);
 
   // uniforms (frame-driven)
   for (const m of [...mats.leaves, mats.body, mats.ear]) {
@@ -255,10 +280,8 @@ export const Sheep: React.FC<SheepProps> = (p) => {
           const wave = p.earWave * Math.sin(t * 5 + (s > 0 ? 0.6 : 0));
           const droop = 0.55 * p.earDroop;
           return (
-            <group key={s} position={[s * 0.2, 0.17, 0.06]} rotation={[0.15, s * -0.25, s * (-1.35 - droop + wave)]}>
-              <mesh position={[0, 0.25, 0]} material={mats.ear}>
-                <capsuleGeometry args={[0.085, 0.36, 10, 20]} />
-              </mesh>
+            <group key={s} position={[s * 0.18, 0.17, 0.04]} rotation={[0.12, s * -0.22, s * (-1.5 - droop + wave)]}>
+              <mesh geometry={s > 0 ? geo.earR : geo.earL} material={mats.ear} />
             </group>
           );
         })}

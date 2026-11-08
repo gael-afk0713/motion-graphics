@@ -20,6 +20,9 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
   const next = index + 1 < BLOCKS.length ? BLOCKS[index + 1].start : Infinity;
   if (frame < b.start || frame >= next) return null;
   const out = Number.isFinite(next) ? interpolate(frame, [next - 3, next], [1, 0], clamp) : 1;
+  // the whole block appears at once (the first one is already on screen at frame 0)
+  const enter = b.start === 0 ? 1 : spring({ frame: frame - b.start + 1, fps, config: { damping: 16, stiffness: 260, mass: 0.5 } });
+  const lines = [...new Set(b.words.map((w) => w.line))];
   return (
     <div
       style={{
@@ -27,42 +30,42 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
         top: SAFE_Y + 30,
         left: SIDE,
         right: SIDE,
-        opacity: out,
+        opacity: out * interpolate(enter, [0, 0.4], [0, 1], clamp),
+        scale: interpolate(enter, [0, 1], [0.92, 1]),
         fontFamily: FONT,
         fontWeight: 900,
         fontSize: b.size,
-        lineHeight: 1.1,
-        textAlign: "center",
+        lineHeight: 1.12,
         letterSpacing: -1,
-        display: "flex",
-        flexWrap: "wrap",
-        justifyContent: "center",
-        columnGap: b.size * 0.26,
       }}
     >
-      {b.words.map((w, i) => {
-        const s =
-          frame < w.appearAt
-            ? 0
-            : w.appearAt === 0
-              ? 1 // the first line is fully on screen from frame 0
-              : spring({ frame: frame - w.appearAt + 1, fps, config: { damping: 14, stiffness: 200, mass: 0.5 } });
-        return (
-          <span
-            key={i}
-            style={{
-              display: "inline-block",
-              color: w.key ? KEY : "#ffffff",
-              opacity: interpolate(s, [0, 0.3], [0, 1], clamp),
-              scale: interpolate(s, [0, 1], [w.key ? 1.2 : 0.75, 1]),
-              translate: `0px ${interpolate(s, [0, 1], [24, 0])}px`,
-              textShadow: outline,
-            }}
-          >
-            {w.text}
-          </span>
-        );
-      })}
+      {lines.map((li) => (
+        <div key={li} style={{ display: "flex", justifyContent: "center", alignItems: "baseline", columnGap: b.size * 0.34, whiteSpace: "nowrap" }}>
+          {b.words
+            .filter((w) => w.line === li)
+            .map((w, i) => {
+              // karaoke highlight while the word is being spoken
+              const end = Math.max(w.endAt, w.spokenAt + 3);
+              const on = interpolate(frame, [w.spokenAt - 2, w.spokenAt + 1, end - 1, end + 2], [0, 1, 1, 0], clamp);
+              const base = w.key ? KEY : "#ffffff";
+              return (
+                <span
+                  key={i}
+                  style={{
+                    display: "inline-block",
+                    color: base,
+                    transformOrigin: "50% 80%", // grow from the baseline: words stay aligned
+                    scale: 1 + 0.08 * on,
+                    filter: `brightness(${1 + 0.25 * on})`,
+                    textShadow: `${outline}, 0 0 ${28 * on}px ${w.key ? "rgba(255,210,63,0.85)" : "rgba(255,255,255,0.8)"}`,
+                  }}
+                >
+                  {w.text}
+                </span>
+              );
+            })}
+        </div>
+      ))}
     </div>
   );
 };
@@ -78,7 +81,7 @@ export const Captions: React.FC = () => (
 export const Grade: React.FC = () => {
   const frame = useCurrentFrame();
   // scene 2: background darkens a little while we zoom into the eyes
-  const dark = interpolate(frame, [S[1] + 6, sceneEnd(1) - 10, sceneEnd(1)], [0, 0.42, 0.42], clamp);
+  const dark = interpolate(frame, [S[1] + 6, sceneEnd(1) - 10, sceneEnd(1)], [0, 0.3, 0.3], clamp);
   // quick dips in water colour hide the set changes (leaf <-> sand)
   const dip = Math.max(
     interpolate(frame, [S[2] - 6, S[2] - 1, S[2] + 1, S[2] + 7], [0, 1, 1, 0], clamp),
