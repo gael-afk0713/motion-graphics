@@ -6,6 +6,8 @@ import { LesmaVideo } from "./lesma/LesmaVideo";
 import { DURATION as OVELHA_DURATION } from "./ovelha/timeline";
 import { OvelhaVideo } from "./ovelha/OvelhaVideo";
 import { VenusVideo } from "./venus/VenusVideo";
+import { DURATION as FOGUETE_DURATION } from "./foguete/timeline";
+import { FogueteVideo } from "./foguete/FogueteVideo";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -31,6 +33,14 @@ export const RemotionRoot: React.FC = () => {
         id="Ovelha"
         component={OvelhaVideo}
         durationInFrames={OVELHA_DURATION}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="Foguete"
+        component={FogueteVideo}
+        durationInFrames={FOGUETE_DURATION}
         fps={30}
         width={1080}
         height={1920}
