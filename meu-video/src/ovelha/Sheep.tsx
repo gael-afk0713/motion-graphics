@@ -187,6 +187,7 @@ export type SheepProps = {
   mouth: number; // -1 frown, 0 none, 1 smile
   nibble: number; // 0..1 head dip
   lookDown: number; // 0..1
+  headYaw?: number; // radians, negative = turns towards her left (screen left)
 };
 
 export const Sheep: React.FC<SheepProps> = (p) => {
@@ -245,7 +246,7 @@ export const Sheep: React.FC<SheepProps> = (p) => {
       })}
 
       {/* head */}
-      <group position={[0, 0.25, 0.86]} rotation={[faceRotX, 0, 0]}>
+      <group position={[0, 0.25, 0.86]} rotation={[faceRotX, p.headYaw ?? 0, 0]}>
         <mesh position={[0, -0.03, 0.02]} scale={[0.31, 0.36, 0.27]} material={mats.body}>
           <sphereGeometry args={[1, 48, 36]} />
         </mesh>

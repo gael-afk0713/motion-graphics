@@ -20,7 +20,7 @@ const SHOTS: { a: Pose; b: Pose }[] = [
   { a: { p: [0, 0.95, 6.4], t: [0, 0.62, 0] }, b: { p: [0.25, 0.9, 5.8], t: [0, 0.6, 0] } }, // 1 front close-up
   { a: { p: [0, 0.85, 6.2], t: [0, 0.52, 0.9] }, b: { p: [0, 0.75, 5.3], t: [0, 0.52, 0.9] } }, // 2 medium close on the face
   { a: { p: [5.3, 1.15, 7.6], t: [0.65, 0.45, -0.35] }, b: { p: [6.45, 1.25, 10.0], t: [0.5, 0.45, -0.25] } }, // 3 side view with the rice grain
-  { a: { p: [15.6, 2.26, 0.81], t: [0, 2.26, 0.81] }, b: { p: [14.82, 2.26, 0.81], t: [0, 2.26, 0.81] } }, // 4 side view, still camera, 5% zoom
+  { a: { p: [0.75, 0.95, 6.35], t: [-0.1, 0.62, 0] }, b: { p: [0.95, 0.92, 5.9], t: [-0.1, 0.6, 0] } }, // 4 like scene 1, slight 3/4
   { a: { p: [-1.6, 0.55, 4.6], t: [0, 0.7, 0] }, b: { p: [-1.0, 0.75, 4.0], t: [0, 0.75, 0] } }, // 5 backlit leaves
   { a: { p: [0, 0.95, 6.0], t: [0, 0.6, 0] }, b: { p: [0, 0.85, 5.2], t: [0, 0.55, 0] } }, // 6 fading
   { a: { p: [0.3, 0.95, 6.2], t: [0, 0.62, 0] }, b: { p: [-0.2, 0.9, 5.7], t: [0, 0.62, 0] } }, // 7 happy
@@ -41,7 +41,7 @@ export const cameraPose = (f: number): Pose => {
   }
   // diver-like floating sway (smaller in the extreme eye close-up)
   const t = f / FPS;
-  const amp = i === 3 ? 0 : 1; // scene 4: the camera stands still
+  const amp = 1;
   const sway: V3 = [0.06 * Math.sin(t * 0.6) * amp, 0.045 * Math.sin(t * 0.83 + 1) * amp, 0.05 * Math.sin(t * 0.5 + 2) * amp];
   return { p: [pose.p[0] + sway[0], pose.p[1] + sway[1], pose.p[2] + sway[2]], t: [pose.t[0] + sway[0] * 0.4, pose.t[1] + sway[1] * 0.4, pose.t[2]] };
 };
@@ -376,169 +376,156 @@ const RiceGrain: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Scene 4: nibbling an upright Avrainvillea blade (side view)
-// Screen layout (camera at x=15.6, y=2.26, z=0.81, 195 px/unit at x=0):
-//   leaf x 80..470 px, y ~700..1400 px; mouth touching its right edge at ~(470, 1050)
-// She stands on a smooth sand dune (h=1.6) so her mouth reaches the blade's middle.
+// Scene 4: same set and framing as scene 1. An upright, fan-shaped
+// Avrainvillea blade stands at her left, against her face; she turns to it
+// and nibbles its edge twice; little green sparks hop from the leaf into her mouth.
 // ---------------------------------------------------------------------------
-const DUNE_H = 1.6;
-const LEAF_EDGE_Z = 1.17; // blade's right edge (on screen) = where her mouth touches
-const MOUTH_Y = DUNE_H + 0.2;
-const duneHeight = (z: number) => {
-  const k = Math.min(1, Math.max(0, (z - 1.02) / 0.6));
-  return DUNE_H * (1 - k * k * (3 - 2 * k));
-};
-const Dune: React.FC<{ frame: number }> = ({ frame }) => {
-  const geo = useMemo(() => {
-    const nx = 120, nz = 320, X0 = -30, X1 = 2.6, Z0 = -16, Z1 = 9;
-    const pos: number[] = [];
-    const idx: number[] = [];
-    for (let j = 0; j <= nz; j++)
-      for (let i = 0; i <= nx; i++) {
-        const x = X0 + ((X1 - X0) * i) / nx, z = Z0 + ((Z1 - Z0) * j) / nz;
-        const kx = Math.min(1, Math.max(0, (x - 0.9) / 1.5));
-        pos.push(x, duneHeight(z) * (1 - kx * kx * (3 - 2 * kx)), z);
-      }
-    for (let j = 0; j < nz; j++)
-      for (let i = 0; i < nx; i++) {
-        const a = j * (nx + 1) + i, b = a + 1, c = a + nx + 1, d = c + 1;
-        idx.push(a, c, b, b, c, d);
-      }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    g.setIndex(idx);
-    g.computeVertexNormals();
-    return g;
-  }, []);
-  const mat = useMemo(() => makeSand(0), []);
-  mat.uniforms.uTime.value = frame / FPS;
-  return <mesh geometry={geo} material={mat} />;
-};
-
-let bladeTex: THREE.CanvasTexture | null = null;
-const getBladeTex = () => {
-  if (bladeTex) return bladeTex;
-  const W = 512, H = 832;
+let fanTex: THREE.CanvasTexture | null = null;
+const FAN = { x0: -1.85, x1: 0.15, h: 2.0 }; // shape bounds (local units)
+const getFanTex = () => {
+  if (fanTex) return fanTex;
+  const W = 512, H = 512;
   const c = document.createElement("canvas");
   c.width = W;
   c.height = H;
   const g = c.getContext("2d")!;
   g.fillStyle = "#4E6B2E";
   g.fillRect(0, 0, W, H);
-  const r = rng(51);
-  // velvety mottling + fine fibres
-  for (let i = 0; i < 70; i++) {
-    const x = r() * W, y = r() * H, rad = 20 + r() * 60;
+  const r = rng(61);
+  for (let i = 0; i < 60; i++) {
+    const x = r() * W, y = r() * H, rad = 16 + r() * 50;
     const gr = g.createRadialGradient(x, y, 0, x, y, rad);
-    const l = r() < 0.5;
-    gr.addColorStop(0, l ? "rgba(120,150,70,0.18)" : "rgba(30,45,15,0.2)");
+    gr.addColorStop(0, r() < 0.5 ? "rgba(125,155,75,0.2)" : "rgba(28,42,14,0.22)");
     gr.addColorStop(1, "rgba(0,0,0,0)");
     g.fillStyle = gr;
     g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
-  for (let i = 0; i < 3500; i++) {
+  for (let i = 0; i < 3000; i++) {
     const x = r() * W, y = r() * H;
-    g.strokeStyle = r() < 0.5 ? "rgba(140,170,90,0.12)" : "rgba(20,30,10,0.12)";
+    g.strokeStyle = r() < 0.5 ? "rgba(150,180,95,0.12)" : "rgba(18,28,8,0.12)";
     g.beginPath();
     g.moveTo(x, y);
-    g.lineTo(x + (r() - 0.5) * 2, y - 6 - r() * 8);
+    g.lineTo(x + (r() - 0.5) * 2, y - 5 - r() * 7);
     g.stroke();
   }
-  // 5 fine, lighter veins fanning out from the base
+  // fine veins fanning out from the base (base = bottom, near the right side)
+  const bx = ((-0.25 - FAN.x0) / (FAN.x1 - FAN.x0)) * W, by = H;
   g.lineCap = "round";
-  for (let k = 0; k < 5; k++) {
-    const a = -0.55 + (1.1 * k) / 4;
-    g.strokeStyle = "rgba(170,200,110,0.55)";
-    g.lineWidth = 4;
+  for (let k = 0; k < 9; k++) {
+    const a = -1.25 + (1.35 * k) / 8; // angles from up-left to up
+    g.strokeStyle = "rgba(175,205,115,0.45)";
+    g.lineWidth = 2.5;
     g.beginPath();
-    g.moveTo(W / 2, H);
-    g.quadraticCurveTo(W / 2 + Math.sin(a) * W * 0.25, H * 0.55, W / 2 + Math.sin(a) * W * 0.42, H * 0.08 + Math.abs(a) * H * 0.15);
+    g.moveTo(bx, by);
+    g.quadraticCurveTo(bx + Math.sin(a) * W * 0.25, by - H * 0.45, bx + Math.sin(a) * W * 0.62, by - H * (0.9 - Math.abs(a) * 0.12));
     g.stroke();
   }
-  bladeTex = new THREE.CanvasTexture(c);
-  bladeTex.colorSpace = THREE.SRGBColorSpace;
-  // shape coords: x in [-2, 0], y in [0, 3.24]
-  bladeTex.repeat.set(0.5, 1 / 3.24);
-  bladeTex.offset.set(1, 0);
-  return bladeTex;
+  fanTex = new THREE.CanvasTexture(c);
+  fanTex.colorSpace = THREE.SRGBColorSpace;
+  fanTex.repeat.set(1 / (FAN.x1 - FAN.x0), 1 / FAN.h);
+  fanTex.offset.set(-FAN.x0 / (FAN.x1 - FAN.x0), 0);
+  return fanTex;
 };
 
-const BLADE_Y = 0.35; // blade is 2.0 wide x 3.24 tall
-const UprightBlade: React.FC<{ glow: number }> = ({ glow }) => {
-  const geo = useMemo(() => {
-    const sh = new THREE.Shape();
-    // rounded paddle / fan; right edge at x = 0 (this is where her mouth touches)
-    sh.moveTo(-1.0, 0);
-    sh.bezierCurveTo(-0.45, 0.02, -0.02, 0.6, 0, 1.45);
-    sh.bezierCurveTo(0.02, 2.4, -0.12, 3.05, -0.55, 3.2);
-    sh.bezierCurveTo(-0.85, 3.27, -1.15, 3.27, -1.45, 3.2);
-    sh.bezierCurveTo(-1.88, 3.05, -2.02, 2.4, -2.0, 1.45);
-    sh.bezierCurveTo(-1.98, 0.6, -1.55, 0.02, -1.0, 0);
-    const g = new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.025, bevelSize: 0.025, bevelSegments: 3, curveSegments: 48 });
-    return g;
-  }, []);
+// local frame: base of the stalk at the origin, right edge near x = 0 (her face)
+const fanShape = () => {
+  const sh = new THREE.Shape();
+  const r = rng(73);
+  sh.moveTo(-0.32, 0.12);
+  sh.bezierCurveTo(-0.12, 0.22, 0.02, 0.6, 0.06, 1.05); // right edge (bitten edge)
+  sh.bezierCurveTo(0.1, 1.45, 0.14, 1.75, 0.12, 1.9);
+  // wavy, irregular top edge, from right to left
+  const n = 26;
+  for (let i = 1; i <= n; i++) {
+    const t = i / n;
+    const x = 0.12 + (FAN.x0 + 0.05 - 0.12) * t;
+    const y = 1.9 + 0.08 * Math.sin(t * 9 + 1) + 0.05 * Math.sin(t * 23) + (r() - 0.5) * 0.05 - 0.15 * t * t;
+    sh.lineTo(x, y);
+  }
+  sh.bezierCurveTo(-1.85, 1.3, -1.2, 0.55, -0.55, 0.16); // left edge down to the base
+  sh.lineTo(-0.32, 0.12);
+  return sh;
+};
+
+const FAN_POS = new THREE.Vector3(-0.34, 0.06, 1.22);
+const FAN_YAW = 0.42; // turned a little towards her face / the camera
+const FanLeaf: React.FC<{ glow: number }> = ({ glow }) => {
+  const geo = useMemo(
+    () => new THREE.ExtrudeGeometry(fanShape(), { depth: 0.04, bevelEnabled: true, bevelThickness: 0.015, bevelSize: 0.015, bevelSegments: 2, curveSegments: 40 }),
+    [],
+  );
   const mat = useMemo(
     () =>
       new THREE.MeshPhysicalMaterial({
-        map: getBladeTex(),
-        color: "#ffffff",
-        emissiveMap: getBladeTex(),
+        map: getFanTex(),
+        emissiveMap: getFanTex(),
         emissive: new THREE.Color("#ffffff"),
-        emissiveIntensity: 0.55,
+        emissiveIntensity: 0.35,
         roughness: 1,
         sheen: 1,
-        sheenColor: new THREE.Color("#9fb36a"),
+        sheenColor: new THREE.Color("#a6b86e"),
         sheenRoughness: 0.7,
+        side: THREE.DoubleSide,
       }),
     [],
   );
   const { dot } = getLesmaTextures();
   return (
-    <group>
-      {/* blade standing upright; shape x -> world -z, extrusion -> world x */}
-      <group position={[-0.045, BLADE_Y, LEAF_EDGE_Z]} rotation={[0, Math.PI / 2, 0]}>
-        <mesh geometry={geo} material={mat} />
+    <group position={FAN_POS} rotation={[0, FAN_YAW, 0]}>
+      {/* a bit taller than her (~1.6), entering the frame from the left */}
+      <group scale={0.8}>
+        <mesh geometry={geo} material={mat} position={[0, 0, -0.02]} />
+        {/* short stalk */}
+        <mesh position={[-0.32, 0.03, 0]}>
+          <cylinderGeometry args={[0.035, 0.05, 0.14, 10]} />
+          <meshStandardMaterial color="#3d5224" roughness={1} />
+        </mesh>
       </group>
-      {/* short stalk planted in the sand */}
-      <mesh position={[0, BLADE_Y / 2, LEAF_EDGE_Z + 1.0]}>
-        <cylinderGeometry args={[0.07, 0.1, BLADE_Y + 0.05, 12]} />
-        <meshStandardMaterial color="#3d5224" roughness={1} />
-      </mesh>
-      {/* the edge glows light green where the mouth touches it */}
-      <sprite position={[0.12, MOUTH_Y, LEAF_EDGE_Z + 0.07]} scale={[0.42, 0.42, 1]}>
-        <spriteMaterial map={dot} color="#B8FF7A" transparent opacity={0.85 * glow} blending={THREE.AdditiveBlending} depthWrite={false} />
+      {/* the bitten edge glows light green */}
+      <sprite position={[0.02, BITE.y - FAN_POS.y, 0.05]} scale={[0.17, 0.17, 1]}>
+        <spriteMaterial map={dot} color="#B8FF7A" transparent opacity={0.55 * glow} blending={THREE.AdditiveBlending} depthWrite={false} />
       </sprite>
     </group>
   );
 };
 
-// one capsule at a time: leaf edge -> mouth, horizontal, <= 60 px, shrinking into the mouth
-const CAP_EVERY = 16;
-const CAP_TRAVEL = 20;
-const CAP_FIRST = S[3] + 16;
-const CAP_LAST = sceneEnd(3) - 26;
-export const capsuleArrivals = (() => {
+// bite point on the leaf edge (world) and her mouth when turned towards it
+const BITE = new THREE.Vector3(-0.3, 0.3, 1.25);
+const MOUTH_TURNED = new THREE.Vector3(-0.1, 0.27, 1.14);
+const SPARK_EVERY = 13;
+const SPARK_TRAVEL = 13; // => at most 1-2 visible (never more than 3)
+const SPARK_FIRST = S[3] + 14;
+const SPARK_LAST = sceneEnd(3) - 20;
+export const sparkArrivals = (() => {
   const out: number[] = [];
-  for (let f = CAP_FIRST; f <= CAP_LAST; f += CAP_EVERY) out.push(f + CAP_TRAVEL);
+  for (let f = SPARK_FIRST; f <= SPARK_LAST; f += SPARK_EVERY) out.push(f + SPARK_TRAVEL);
   return out;
 })();
-const NibbleCapsules: React.FC<{ frame: number; zOff: number }> = ({ frame, zOff }) => {
-  const caps: { z: number; s: number }[] = [];
-  for (let f0 = CAP_FIRST; f0 <= CAP_LAST; f0 += CAP_EVERY) {
-    const k = (frame - f0) / CAP_TRAVEL;
+const BiteSparks: React.FC<{ frame: number }> = ({ frame }) => {
+  const items: { p: THREE.Vector3; s: number }[] = [];
+  for (let f0 = SPARK_FIRST; f0 <= SPARK_LAST; f0 += SPARK_EVERY) {
+    const k = (frame - f0) / SPARK_TRAVEL;
     if (k < 0 || k >= 1) continue;
-    const start = LEAF_EDGE_Z + 0.3, end = LEAF_EDGE_Z - 0.04 + zOff; // ~60px at 195 px/unit
-    const z = start + (end - start) * ease(k);
-    const s = (k < 0.12 ? k / 0.12 : 1) * (k > 0.62 ? Math.max(0, (1 - k) / 0.38) : 1);
-    caps.push({ z, s });
+    const e = ease(k);
+    // short hop from the leaf straight into the mouth
+    const p = BITE.clone().lerp(MOUTH_TURNED, e);
+    p.y += Math.sin(Math.PI * e) * 0.08;
+    const s = (k < 0.15 ? k / 0.15 : 1) * (k > 0.7 ? Math.max(0, (1 - k) / 0.3) : 1);
+    items.push({ p, s });
   }
+  const { dot } = getLesmaTextures();
   return (
     <>
-      {caps.map((c, i) => (
-        <mesh key={i} position={[0.16, MOUTH_Y, c.z]} scale={[0.046 * c.s, 0.046 * c.s, 0.058 * c.s]}>
-          <sphereGeometry args={[1, 16, 12]} />
-          <meshStandardMaterial color="#8dff7f" emissive="#3ee05a" emissiveIntensity={1.1} roughness={0.3} />
-        </mesh>
+      {items.map((it, i) => (
+        <group key={i} position={it.p}>
+          <mesh scale={0.035 * it.s}>
+            <sphereGeometry args={[1, 14, 10]} />
+            <meshStandardMaterial color="#a8ff8e" emissive="#48e865" emissiveIntensity={1.3} roughness={0.3} />
+          </mesh>
+          <sprite scale={[0.1 * it.s, 0.1 * it.s, 1]}>
+            <spriteMaterial map={dot} color="#9dff6a" transparent opacity={0.6} blending={THREE.AdditiveBlending} depthWrite={false} />
+          </sprite>
+        </group>
       ))}
     </>
   );
@@ -550,9 +537,10 @@ const NibbleCapsules: React.FC<{ frame: number; zOff: number }> = ({ frame, zOff
 const blinkAt = (f: number, at: number) => interpolate(f, [at, at + 3, at + 6], [0, 1, 0], clamp);
 
 const bump = (f: number, a: number, d: number) => (f >= a && f <= a + d ? Math.sin((Math.PI * (f - a)) / d) : 0);
-// scene 4: the head pulls back from the leaf and touches it again, twice, very lightly
-const nibbleZ = (f: number) => -0.08 * (bump(f, S[3] + 4, 14) + bump(f, S[3] + 52, 14));
-const leafPulse = (f: number) => capsuleArrivals.reduce((a, t) => a + (f >= t ? Math.max(0, 1 - (f - t) / 12) : 0), 0);
+// scene 4: turns her face to the leaf, then two small, cute nibbles
+const headTurn = (f: number) => -0.38 * interpolate(f, [S[3] + 2, S[3] + 12, sceneEnd(3) - 8, sceneEnd(3)], [0, 1, 1, 0], { ...clamp, easing: ease });
+const nibbleAmt = (f: number) => bump(f, S[3] + 16, 12) + bump(f, S[3] + 58, 12);
+const leafPulse = (f: number) => sparkArrivals.reduce((a, t) => a + (f >= t ? Math.max(0, 1 - (f - t) / 12) : 0), 0);
 
 const sheepState = (f: number) => {
   const sc = sceneOf(f);
@@ -567,10 +555,11 @@ const sheepState = (f: number) => {
   const earDroop = interpolate(f, [S[5] + 20, S[5] + 50, sceneEnd(5) - 2, sceneEnd(5) + 6], [0, 1, 1, 0], clamp);
   const lookDown = interpolate(f, [S[5] + 25, S[5] + 50, sceneEnd(5) - 2, sceneEnd(5) + 6], [0, 1, 1, 0], clamp);
   const mouth = sc === 5 ? -interpolate(f, [S[5] + 25, S[5] + 40], [0, 1], clamp) : sc === 6 ? interpolate(f, [S[6] + 4, S[6] + 14], [0, 1], clamp) : 0;
-  const nib = 0;
+  const nib = sc === 3 ? 0.35 * nibbleAmt(f) : 0;
   const hop = sc === 6 ? Math.abs(Math.sin(((f - S[6]) / 30) * Math.PI * 1.6)) * 0.05 : 0;
   const pulse = sc === 3 ? 0.4 * leafPulse(f) : 0;
-  return { t, pale, glow: glow + pulse, back, blink, earWave, earDroop, lookDown, mouth, nibble: nib, hop };
+  const headYaw = sc === 3 ? headTurn(f) : 0;
+  return { t, pale, glow: glow + pulse, back, blink, earWave, earDroop, lookDown, mouth, nibble: nib, hop, headYaw };
 };
 
 // ---------------------------------------------------------------------------
@@ -615,15 +604,14 @@ export const OvelhaScene: React.FC = () => {
         <Lights dir={dir} />
         <SandFloor frame={frame} y={-0.01} radius={6.5} size={16} />
         {sand && <RiceGrain />}
-        {!sand && sc !== 3 && <LeafPlatform />}
+        {!sand && <LeafPlatform />}
         {sc === 3 && (
           <>
-            <Dune frame={frame} />
-            <UprightBlade glow={interpolate(frame, [S[3] + 6, S[3] + 14], [0, 1], clamp) * (0.75 + 0.25 * Math.sin(frame * 0.35))} />
-            <NibbleCapsules frame={frame} zOff={nibbleZ(frame)} />
+            <FanLeaf glow={interpolate(frame, [S[3] + 14, S[3] + 22], [0, 1], clamp) * (0.7 + 0.3 * Math.sin(frame * 0.4))} />
+            <BiteSparks frame={frame} />
           </>
         )}
-        <group position={[0, st.hop + (sc === 3 ? DUNE_H : sand ? 0 : 0.06), sc === 3 ? nibbleZ(frame) : 0]}>
+        <group position={[0, st.hop + (sand ? 0 : 0.06), 0]}>
           <Sheep
             t={st.t}
             blink={st.blink}
@@ -636,6 +624,7 @@ export const OvelhaScene: React.FC = () => {
             mouth={st.mouth}
             nibble={st.nibble}
             lookDown={st.lookDown}
+            headYaw={st.headYaw}
           />
         </group>
         <Particles frame={frame} n={70} seed={8} box={[[-3, -0.2, -1], [3, 3, 4]]} size={0.025} opacity={0.6} />
