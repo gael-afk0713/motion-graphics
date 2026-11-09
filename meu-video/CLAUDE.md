@@ -16,8 +16,9 @@
   compartilhe!", então o vídeo não precisa de cena própria com essa fala.
 - Não altere a ending sem aprovação (desenho e timing aprovados). Para ver
   sozinha: composição "Outro".
-- Já têm a ending: Venus, Ovelha e Foguete (no Foguete ela substitui a cena 7,
-  a da placa). Lesma fica sem (descartado).
+- Já têm a ending: Venus (substitui a cena de CTA "Segue pra mais
+  curiosidades"), Ovelha e Foguete (substitui a cena 7, a da placa). Lesma fica
+  sem (descartado).
 
 ## Regra dos pixels da logo
 Cada pixel da logo é um quadrado de tamanho inteiro e fixo (12 px), em posição

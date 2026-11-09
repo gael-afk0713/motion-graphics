@@ -1,6 +1,6 @@
 import { Composition } from "remotion";
 import { MyComposition } from "./Composition";
-import { DURATION } from "./venus/timeline";
+import { CONTENT_DURATION as VENUS_CONTENT } from "./venus/timeline";
 import { DURATION as LESMA_DURATION } from "./lesma/timeline";
 import { LesmaVideo } from "./lesma/LesmaVideo";
 import { DURATION as OVELHA_DURATION } from "./ovelha/timeline";
@@ -12,8 +12,9 @@ import { CuriosarioOutro, OUTRO_DURATION, OUTRO_FPS } from "./components/Curiosa
 import { WithOutro, withOutroDuration } from "./components/WithOutro";
 
 // every video ends with the standard Curiosário ending (see CLAUDE.md)
+// Venus: scenes 1-5, then the ending (replaces the "Segue pra mais" CTA scene)
 const VenusComOutro: React.FC = () => (
-  <WithOutro contentFrames={DURATION}>
+  <WithOutro contentFrames={VENUS_CONTENT}>
     <VenusVideo />
   </WithOutro>
 );
@@ -36,7 +37,7 @@ export const RemotionRoot: React.FC = () => {
       <Composition
         id="Venus"
         component={VenusComOutro}
-        durationInFrames={withOutroDuration(DURATION)}
+        durationInFrames={withOutroDuration(VENUS_CONTENT)}
         fps={30}
         width={1080}
         height={1920}

@@ -173,3 +173,9 @@ export const cameraState = (f: number) => {
     .lerp(retroTarget, kIn);
   return { pos, target };
 };
+
+// What plays before the standard Curiosário ending: scenes 1-5. The CTA scene
+// ("Segue pra mais curiosidades") is dropped — the ending replaces it. The cut
+// is 8 frames before scene 6, i.e. right after "...nasce no OESTE" is spoken
+// and before the flash/fade transition into the CTA starts.
+export const CONTENT_DURATION = SCENE_STARTS[5] - 8;
