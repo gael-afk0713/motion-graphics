@@ -7,7 +7,7 @@ export const GALAXY_PALETTE = ["rgb(45,9,71)", "rgb(71,19,142)", "rgb(82,11,79)"
 // ellipse measured on the PNG galaxy: major-axis tilt (rad, y down) and minor/major ratio
 export const GALAXY_ELLIPSE = {"angle": -3.132, "ratio": 0.5938};
 // centroid of each stage (in its own cells): pivot of the spin
-export const GALAXY_CENTROIDS = [[5.5, 3.5], [7.0, 4.5], [8.459, 5.17], [9.93, 6.315], [11.72, 7.495], [13.964, 9.135], [16.293, 10.715], [18.793, 11.758], [20.264, 12.873], [21.638, 13.933], [22.911, 14.381], [24.234, 15.524]];
+export const GALAXY_CENTROIDS = [[5.5, 3.5], [7.0, 4.5], [8.459, 5.17], [9.93, 6.315], [13.964, 9.135], [18.793, 11.758], [21.638, 13.933], [24.234, 15.524]];
 export const GALAXY_STAGES: string[][] = [
  [
   "...eeggh...",
@@ -56,22 +56,6 @@ export const GALAXY_STAGES: string[][] = [
   "....dd..........d..."
  ],
  [
-  "..........eddd..........",
-  ".......begg...fed.......",
-  "..........jiiiifg.......",
-  "....db.hhjjjcccc........",
-  "...egfjlllcflmjjihge....",
-  "..e..hlfffmmlljllcbed...",
-  ".dg.aflcllmkkmlfmlcbee..",
-  ".de.ccllfmkkklmcflhc.gd.",
-  "h.eeccfllmmmlljfllfc..ee",
-  "b..ghiffflllliflliff.ee.",
-  ".....hhjjljfcfljiffaaa..",
-  "..dee..iccacjihfc.h.....",
-  "...eeedd..ihfca....d....",
-  "....dddd...........b...."
- ],
- [
   ".............ddd............",
   ".........dgggd....d.........",
   ".........d....hhihhe........",
@@ -89,28 +73,6 @@ export const GALAXY_STAGES: string[][] = [
   "...eeg..i..cfiihfca.........",
   "...deeedd...hfcaca....dd....",
   ".......dd.............b....."
- ],
- [
-  "................bdd..............",
-  "...........dggged.....b..........",
-  "..........bdg.g...hhheee.........",
-  ".............ijihiiihfgg.........",
-  ".....ddb...fhijjjfccaa...........",
-  "....deebf.ijjlffacfffff..........",
-  "...deg.cijllffcfllmljjihheed.....",
-  "..deg..fillfcflmmlllmljcfegeb....",
-  "..eg..cillcflmmmmmmjimmjcadee....",
-  ".de...aflfclmlmkkkmmlcmmjca.edd..",
-  ".dde.afcllffmmkkkklmlcfmjhc.dgdd.",
-  "..eedaaclmmllmmmmllmjcfmjhc...gde",
-  "dh.eeefacfllmmmllmljffmliff...eee",
-  "b...ghhiicccffillljfflljhff..ehd.",
-  "......hhijjflljjffcfljjhfccaabd..",
-  "....d....hjjjjicccljjhhfchcaaa...",
-  "...dgd.....aaaacfjihfcaa.hc......",
-  "...deggee....fiihhccaa....b......",
-  "....ddeeddb...hfcaaca.....dd.....",
-  "........d.d...............b......"
  ],
  [
   "..................bbdd................",
@@ -135,32 +97,6 @@ export const GALAXY_STAGES: string[][] = [
   "....deggee..h...iiiffaaaa.....db......",
   "......deeddd.....b..acc......bdd......",
   ".........d.d..................b......."
- ],
- [
-  "....................bbdb.................",
-  "..............d.eeedded..................",
-  "............adegggg....hfhedd............",
-  ".............db.....hhhhiihgg............",
-  "................hjjhhjji..c.g............",
-  ".......dbb...hfhijjjlfaa.aa..............",
-  "......dedbf.iijjllffacfffffff............",
-  ".....deg.aijlllfmcaffflljjiiihhegd.......",
-  "....dgg..fhllmfccfllmmmmmmljffhhgedaa....",
-  "...dgg..hhjlfccclmmmlljihmmljcaceeed.....",
-  "..deg...fjllcclmmmmmmmmmjilmmlcacdeee....",
-  "..de...aalllcclmjmkkkkkmmlcfmljcc..edd...",
-  "..dde..ccfllfffmmmkkkkmmmlcclmjhf..dgdb..",
-  "..eeedacccllmmffmmmmmmjlmjcclmjhf....ged.",
-  ".h.eeeeaacclmmmmmmmmmlmmljcfmljha....geee",
-  "bh..eeghfcfccflllljllmljicfmljhfc....eeee",
-  "b....gghiijffccfiillllffcflljihfc...egee.",
-  ".......hhhiijiflljjjffcffljjihfabaaabbd..",
-  ".....dd....hijjjjjfcacfljjhhhfahfa.aaa...",
-  "....dgdd.....caaaaaccljjhhfaaa.hf...a....",
-  "....dggeg...i...acciiihffaa....h.........",
-  ".....deeged..h...iiiffcaaa......ddd......",
-  "......ddedddd.....ff.aafc.......bdd......",
-  "..........d.e....................b......."
  ],
  [
   ".....................bbddb..................",
@@ -189,35 +125,6 @@ export const GALAXY_STAGES: string[][] = [
   ".....deeegdddb....hihfccaaaa......bed.......",
   ".......ddddddb......c..a.m........bdd.......",
   "...........d.e.....................b........"
- ],
- [
-  "......................bbddb...................",
-  "................d.eeeddddd....................",
-  "...............degggged....c..bb..............",
-  ".............abdeg.g.....hhhheeee.............",
-  "...............da.....hhiiiiifhgg.............",
-  ".................hhjjiijiff..a..g.............",
-  ".......ddbbb...hfiijjjlfcaaaaaa...............",
-  "......deedbfijijjjllffcacfffffffh.............",
-  ".....degg.ahjllllfmcacffllljjjiiihhege........",
-  "....degg..fhjlmmfcfcllmmmmmmmljjffhggedba.....",
-  "...degg..fhillffcclmmmmlljiimmllfacbeeedb.....",
-  "..ddgg...filmfcclmmmmmmmmmmihmmmlfaabeeee.....",
-  "..deg...aallmccclmjmmkkkkmmllccmmlfaaadeee....",
-  "..ddd...aafllccfmmjmkkkkkmmmlccmmlihfa.eedbb..",
-  "..ddee.affcllmfffmmmkkkkmlmmjcccmmihfa.begdd..",
-  "...eeedaaccflmmmffmmmmmmljmmjccfmmihfa...ggdd.",
-  ".h..eeedcaccfllmmmmmmmmlmmmjicfmmlifac...ggeee",
-  "bhh..egghfcfccclllllljllmljicfmmljhffi...eeeee",
-  "bb....ghhiijfffccfffjllllffcfllljihfcf..eehde.",
-  "........hhhiijjfflllljiffcfflljjihcabaaabddd..",
-  "......d.....hijjjjjjifcccflljiiihccffaaaaab...",
-  ".....eed.......fffffcaacfjjiihfccafhfa..aa....",
-  ".....egee....ii...aaacfjjiihfca....h..........",
-  ".....degggee...i...fijihhfccaa.......b........",
-  "......ddegedddb....hhhfccaaaa.......ded.......",
-  ".......dddddddb......c..a.m.........bdd.......",
-  "...........d..e......................b........"
  ],
  [
   "........................bbddb....................",

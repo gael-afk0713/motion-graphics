@@ -54,8 +54,8 @@ const GROW_END = 15;
 // The 3 smallest stages (11, 14, 17 wide) do not spin; from the 4th stage on,
 // the spiral arms turn INSIDE the fixed ellipse: ~0.5 turn, easeOutCubic,
 // ending at exactly 0° on the full PNG galaxy at 0.9 s.
-//                 11  14  17  20  24  28  33  38  41  44  46  49
-const STAGE_AT = [9, 11, 13, 15, 17, 18, 20, 21, 23, 24, 26, 27];
+//                 11  14  17  20  28  38  44  49   (from the 20-wide stage on: 3 frames each)
+const STAGE_AT = [9, 11, 13, 15, 18, 21, 24, 27];
 const NO_SPIN_STAGES = 3;
 const SPIN_START = STAGE_AT[NO_SPIN_STAGES];
 const SPIN_END = STAGE_AT[STAGE_AT.length - 1];
@@ -73,7 +73,11 @@ const TAG_IN = 38; // CTA appears (white) once the name is complete
 
 // Spoken word starts (seconds in outro.mp3), from ffmpeg silencedetect
 // (-30 dB, d=0.04): speech stretches 2.252-2.655 | 2.746-3.205 | 3.267-4.007
-const TAG_AT: Record<string, number> = { CURTA: 2.252, SIGA: 2.746, COMPARTILHE: 3.267 };
+const TAG_AT: Record<string, number> = {
+  CURTA: 2.252,
+  SIGA: 2.746,
+  COMPARTILHE: 3.267,
+};
 // one line, ~88% of the frame width (950 px)
 const TAG_WORDS = ["CURTA", "SIGA", "COMPARTILHE"];
 
@@ -147,12 +151,15 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
   for (let y = 0; y < size; y++)
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
-      if (data[i + 3] >= 128) raw.set(`${x},${y}`, `${data[i]},${data[i + 1]},${data[i + 2]}`);
+      if (data[i + 3] >= 128)
+        raw.set(`${x},${y}`, `${data[i]},${data[i + 1]},${data[i + 2]}`);
     }
   const xy = (k: string) => k.split(",").map(Number) as [number, number];
 
   // planet (top right, brown rings + cream): component of a brown pixel at y <= 20
-  const top = new Set([...raw.keys()].filter((k) => xy(k)[1] <= 20 && xy(k)[0] >= 50));
+  const top = new Set(
+    [...raw.keys()].filter((k) => xy(k)[1] <= 20 && xy(k)[0] >= 50),
+  );
   const ringSeed = [...top].find((k) => BROWNS.includes(raw.get(k)!))!;
   const planet = new Set(bfs(top, [ringSeed]).keys());
   const dust = new Set(GALAXY_DUST.map(([x, y]) => `${x},${y}`));
@@ -162,9 +169,11 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
     const [x, y] = xy(k);
     const [r, g] = c.split(",").map(Number);
     if (planet.has(k)) kind.set(k, "planet");
-    else if (g > 200 && g > r + 30) kind.set(k, "root"); // aqua + light-mint tips
+    else if (g > 200 && g > r + 30)
+      kind.set(k, "root"); // aqua + light-mint tips
     else if (BROWNS.includes(c)) kind.set(k, "trunk");
-    else if (c === CREAM && Math.hypot(x + 0.5 - CORE.x, y + 0.5 - CORE.y) > 8) kind.set(k, "sparkle");
+    else if (c === CREAM && Math.hypot(x + 0.5 - CORE.x, y + 0.5 - CORE.y) > 8)
+      kind.set(k, "sparkle");
     else if (dust.has(k)) kind.set(k, "dust");
     else kind.set(k, "galaxy"); // drawn from GALAXY_STAGES (last stage = these pixels)
   }
@@ -188,22 +197,37 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
   const ph = [0, 1, 2].map((i) => random(`ph${i}`) * Math.PI * 2);
   const speed = (k: string) => {
     const a = Math.atan2(xy(k)[1] + 0.5 - base.y, xy(k)[0] + 0.5 - base.x);
-    return 1 + 0.15 * (0.5 * Math.sin(3 * a + ph[0]) + 0.3 * Math.sin(5 * a + ph[1]) + 0.2 * Math.sin(8 * a + ph[2]));
+    return (
+      1 +
+      0.15 *
+        (0.5 * Math.sin(3 * a + ph[0]) +
+          0.3 * Math.sin(5 * a + ph[1]) +
+          0.2 * Math.sin(8 * a + ph[2]))
+    );
   };
   for (const part of [trunk, roots]) {
-    const eff = new Map(part.map((k) => [k, (treeD.get(k) ?? Infinity) / speed(k)]));
+    const eff = new Map(
+      part.map((k) => [k, (treeD.get(k) ?? Infinity) / speed(k)]),
+    );
     const finite = [...eff.values()].filter(Number.isFinite);
     const max = Math.max(...finite, 1);
     for (const [k, e] of eff) {
       const p = Number.isFinite(e) ? e / max : 1;
       // easeOutQuad front: arrival time t = 1 - sqrt(1 - p) -> the tips arrive last, slower
-      on.set(k, Math.min(GROW_END - 1, Math.floor((1 - Math.sqrt(1 - p)) * GROW_END)));
+      on.set(
+        k,
+        Math.min(GROW_END - 1, Math.floor((1 - Math.sqrt(1 - p)) * GROW_END)),
+      );
     }
   }
-  const rootD = new Map(roots.flatMap((k) => (treeD.has(k) ? [[k, treeD.get(k)!] as const] : [])));
+  const rootD = new Map(
+    roots.flatMap((k) => (treeD.has(k) ? [[k, treeD.get(k)!] as const] : [])),
+  );
   of("planet").forEach((k) => on.set(k, LAST));
   // loose dots and sparkles: one after the other, last
-  const late = [...of("dust"), ...of("sparkle")].sort((a, b) => random(`o${a}`) - random(`o${b}`));
+  const late = [...of("dust"), ...of("sparkle")].sort(
+    (a, b) => random(`o${a}`) - random(`o${b}`),
+  );
   late.forEach((k, i) => on.set(k, LAST + Math.floor((i / late.length) * 3)));
   of("galaxy").forEach((k) => on.set(k, Infinity));
 
@@ -213,8 +237,14 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
   for (const k of roots) {
     const d = rootD.get(k) ?? 0;
     const [x, y] = xy(k);
-    const nb = N8.map(([dx, dy]) => `${x + dx},${y + dy}`).filter((n) => rootD.has(n));
-    if (d > 0 && nb.every((n) => rootD.get(n)! <= d) && !nb.some((n) => taken.has(n))) {
+    const nb = N8.map(([dx, dy]) => `${x + dx},${y + dy}`).filter((n) =>
+      rootD.has(n),
+    );
+    if (
+      d > 0 &&
+      nb.every((n) => rootD.get(n)! <= d) &&
+      !nb.some((n) => taken.has(n))
+    ) {
       tips.push([x, y]);
       taken.add(k);
     }
@@ -228,7 +258,9 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
     kind: kind.get(k)!,
     on: on.get(k)!,
   }));
-  const sparkles = keys.flatMap((k, i) => (kind.get(k) === "sparkle" ? [i] : []));
+  const sparkles = keys.flatMap((k, i) =>
+    kind.get(k) === "sparkle" ? [i] : [],
+  );
   const xs = px.map((p) => p.x);
   return {
     px,
@@ -251,7 +283,9 @@ const readLogo = () => {
       c.height = img.height;
       const ctx = c.getContext("2d")!;
       ctx.drawImage(img, 0, 0);
-      resolve(buildLogo(ctx.getImageData(0, 0, c.width, c.height).data, c.width));
+      resolve(
+        buildLogo(ctx.getImageData(0, 0, c.width, c.height).data, c.width),
+      );
     };
     img.onerror = () => reject(new Error("could not load logo-pixel-80"));
     img.src = staticFile("brand/logo-pixel-80-transparente.png");
@@ -286,14 +320,17 @@ const STAGES = GALAXY_STAGES.map((rows) => {
   return { rows, w, h, ox: Math.round(cx - w / 2), oy: Math.round(cy - h / 2) };
 });
 
-// cells [x, y, colour] of the galaxy at this frame, in logo-grid coordinates
 // Ellipse-preserving spin: for each destination cell, undo the ellipse's tilt and
 // flattening (-> circle), rotate back by the current angle, re-apply flattening
 // and tilt, then take the nearest stage cell. The oval outline never turns; only
 // the arms move inside it. Angle 0 = identity (the PNG).
 const TILT = GALAXY_ELLIPSE.angle;
 const RATIO = GALAXY_ELLIPSE.ratio; // minor / major
-const spinSample = (dx: number, dy: number, angle: number): [number, number] => {
+const spinSample = (
+  dx: number,
+  dy: number,
+  angle: number,
+): [number, number] => {
   const ct = Math.cos(TILT);
   const st = Math.sin(TILT);
   // into the ellipse frame (major axis along u), then stretch the minor axis -> circle
@@ -308,8 +345,72 @@ const spinSample = (dx: number, dy: number, angle: number): [number, number] => 
   return [u2 * ct - v2 * st, u2 * st + v2 * ct];
 };
 
+// Tone family of each GALAXY_PALETTE colour (a..m): dark arm gaps, purples,
+// pinks, warm core. Used by the clean-up below.
+const TONES = [
+  "dark",
+  "purple",
+  "dark",
+  "purple",
+  "purple",
+  "dark",
+  "purple",
+  "pink",
+  "pink",
+  "pink",
+  "warm",
+  "warm",
+  "warm",
+];
+const toneOf = (color: string) => TONES[GALAXY_PALETTE.indexOf(color)];
+const N4 = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+];
+
+// Clean-up after the spin (the nearest-neighbour rotation leaves speckle):
+// 1) remove pixels with fewer than 2 8-neighbours of the same tone family,
+// 2) fill 1-pixel holes whose 4 neighbours are all galaxy, with the most
+//    common neighbouring colour. Mutates `cells`.
+const cleanGrid = (cells: [number, number, string][], minSame = 2) => {
+  const at = new Map(cells.map((c) => [`${c[0]},${c[1]}`, c[2]]));
+  const keep = cells.filter(
+    ([x, y, c]) =>
+      N8.filter(([dx, dy]) => {
+        const n = at.get(`${x + dx},${y + dy}`);
+        return n !== undefined && toneOf(n) === toneOf(c);
+      }).length >= minSame,
+  );
+  const kept = new Map(keep.map((c) => [`${c[0]},${c[1]}`, c[2]]));
+  const filled: [number, number, string][] = [];
+  const xs = keep.map((c) => c[0]);
+  const ys = keep.map((c) => c[1]);
+  for (let y = Math.min(...ys); y <= Math.max(...ys); y++)
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x++) {
+      if (kept.has(`${x},${y}`)) continue;
+      if (N4.some(([dx, dy]) => !kept.has(`${x + dx},${y + dy}`))) continue;
+      const votes = new Map<string, number>();
+      for (const [dx, dy] of N8) {
+        const c = kept.get(`${x + dx},${y + dy}`);
+        if (c) votes.set(c, (votes.get(c) ?? 0) + 1);
+      }
+      filled.push([
+        x,
+        y,
+        [...votes.entries()].sort((p, q) => q[1] - p[1])[0][0],
+      ]);
+    }
+  cells.length = 0;
+  cells.push(...keep, ...filled);
+};
+
 // cells [x, y, colour] of the galaxy at this frame, in logo-grid coordinates
-const galaxyCells = (frame: number, branchTop: number): [number, number, string][] => {
+const galaxyCells = (
+  frame: number,
+  branchTop: number,
+): [number, number, string][] => {
   if (frame < STAGE_AT[0]) return [];
   let si = 0;
   STAGE_AT.forEach((at, i) => {
@@ -318,7 +419,9 @@ const galaxyCells = (frame: number, branchTop: number): [number, number, string]
   const s = STAGES[si];
   const k = interpolate(frame, [SPIN_START, SPIN_END], [0, 1], clamp);
   const angle =
-    si < NO_SPIN_STAGES ? 0 : -2 * Math.PI * SPIN_TURNS * (1 - Easing.out(Easing.cubic)(k));
+    si < NO_SPIN_STAGES
+      ? 0
+      : -2 * Math.PI * SPIN_TURNS * (1 - Easing.out(Easing.cubic)(k));
   const out: [number, number, string][] = [];
   const [ccx, ccy] = GALAXY_CENTROIDS[si];
   const pcx = s.ox + ccx; // pivot = centroid of the stage
@@ -326,23 +429,41 @@ const galaxyCells = (frame: number, branchTop: number): [number, number, string]
   const R = Math.ceil(Math.hypot(s.w, s.h)) + 1;
   for (let gy = Math.floor(pcy - R); gy <= pcy + R; gy++)
     for (let gx = Math.floor(pcx - R); gx <= pcx + R; gx++) {
-      let sx = gx - s.ox;
-      let sy = gy - s.oy;
-      if (angle !== 0) {
-        const [rx, ry] = spinSample(gx + 0.5 - pcx, gy + 0.5 - pcy, angle);
-        sx = Math.floor(rx + ccx);
-        sy = Math.floor(ry + ccy);
+      const at = (sx: number, sy: number) =>
+        sx < 0 || sy < 0 || sx >= s.w || sy >= s.h ? "." : s.rows[sy][sx];
+      let ch: string;
+      if (angle === 0) {
+        ch = at(gx - s.ox, gy - s.oy);
+      } else {
+        // 3x3 nearest-neighbour samples inside the cell, most frequent wins
+        // (empty counts as a vote; no colour blending: palette colours only)
+        const votes = new Map<string, number>();
+        for (const oy of [1 / 6, 0.5, 5 / 6])
+          for (const ox of [1 / 6, 0.5, 5 / 6]) {
+            const [rx, ry] = spinSample(gx + ox - pcx, gy + oy - pcy, angle);
+            const c = at(Math.floor(rx + ccx), Math.floor(ry + ccy));
+            votes.set(c, (votes.get(c) ?? 0) + 1);
+          }
+        ch = [...votes.entries()].sort(
+          (p, q) => q[1] - p[1] || (p[0] === "." ? 1 : -1),
+        )[0][0];
       }
-      if (sx < 0 || sy < 0 || sx >= s.w || sy >= s.h) continue;
-      const ch = s.rows[sy][sx];
       if (ch !== ".") out.push([gx, gy, GALAXY_PALETTE[ch.charCodeAt(0) - 97]]);
     }
+  if (angle !== 0) {
+    // never at 0°: the last stage stays exactly the PNG
+    cleanGrid(out);
+    cleanGrid(out);
+  }
   if (!out.length) return out;
   // anchor: bottom edge of the squares actually drawn = branch tip - GALAXY_GAP
   // (centreY = branchTop - 2 - currentHeight / 2)
   const bottom = Math.max(...out.map((c) => c[1])) + 1;
   const lift = branchTop - GALAXY_GAP - bottom; // integer grid rows (negative = up)
-  const slide = interpolate(frame, SLIDE, [0, 1], { ...clamp, easing: Easing.inOut(Easing.quad) });
+  const slide = interpolate(frame, SLIDE, [0, 1], {
+    ...clamp,
+    easing: Easing.inOut(Easing.quad),
+  });
   const dy = Math.round(lift * (1 - slide)); // whole rows only; 0 from frame 32 on
   return out.map(([x, y, c]) => [x, y + dy, c]);
 };
@@ -394,14 +515,22 @@ const canvasStyle: React.CSSProperties = {
   height: H_,
   imageRendering: "pixelated",
 };
-const originOf = (logo: Logo) => ({ ox: Math.round(W_ / 2 - (logo.w * CELL) / 2), oy: LOGO_TOP });
+const originOf = (logo: Logo) => ({
+  ox: Math.round(W_ / 2 - (logo.w * CELL) / 2),
+  oy: LOGO_TOP,
+});
 
 // soft halo BEHIND the roots (the root pixels themselves stay untouched on top)
 const RootHalo: React.FC<{ logo: Logo }> = ({ logo }) => {
   const frame = useCurrentFrame();
   const ref = useRef<HTMLCanvasElement>(null);
   const { ox, oy } = originOf(logo);
-  const glowIn = interpolate(frame, [COMPLETE - 2, COMPLETE + 4], [0, 1], clamp);
+  const glowIn = interpolate(
+    frame,
+    [COMPLETE - 2, COMPLETE + 4],
+    [0, 1],
+    clamp,
+  );
   const beat = 0.65 + 0.35 * Math.sin((frame - COMPLETE) / 6);
   const glow = glowIn * (COMPLETE + 4 > frame ? 1 : beat);
   useLayoutEffect(() => {
@@ -410,14 +539,23 @@ const RootHalo: React.FC<{ logo: Logo }> = ({ logo }) => {
     ctx.fillStyle = ROOT_GLOW;
     for (const p of logo.px)
       if (p.kind === "root")
-        ctx.fillRect(ox + (p.x - logo.x0) * CELL, oy + (p.y - logo.y0) * CELL, CELL, CELL);
+        ctx.fillRect(
+          ox + (p.x - logo.x0) * CELL,
+          oy + (p.y - logo.y0) * CELL,
+          CELL,
+          CELL,
+        );
   }, [logo, ox, oy]);
   return (
     <canvas
       ref={ref}
       width={W_}
       height={H_}
-      style={{ ...canvasStyle, filter: `blur(${CELL * 1.2}px)`, opacity: 0.9 * glow }}
+      style={{
+        ...canvasStyle,
+        filter: `blur(${CELL * 1.2}px)`,
+        opacity: 0.9 * glow,
+      }}
     />
   );
 };
@@ -432,22 +570,36 @@ const PixelLogo: React.FC<{ logo: Logo }> = ({ logo }) => {
     ctx.clearRect(0, 0, W_, H_);
     const cell = (x: number, y: number, color: string) => {
       ctx.fillStyle = color;
-      ctx.fillRect(ox + (x - logo.x0) * CELL, oy + (y - logo.y0) * CELL, CELL, CELL);
+      ctx.fillRect(
+        ox + (x - logo.x0) * CELL,
+        oy + (y - logo.y0) * CELL,
+        CELL,
+        CELL,
+      );
     };
     // sparkles: once the tree is complete, one at a time switches off for 4 frames
     const n = logo.sparkles.length;
-    const off = frame >= COMPLETE + 4 ? logo.sparkles[Math.floor((frame - COMPLETE - 4) / 4) % n] : -1;
+    const off =
+      frame >= COMPLETE + 4
+        ? logo.sparkles[Math.floor((frame - COMPLETE - 4) / 4) % n]
+        : -1;
     // 1) roots + trunk, 2) galaxy stage on top, 3) planet, dust, sparkles
     logo.px.forEach((p) => {
-      if ((p.kind === "root" || p.kind === "trunk") && frame >= p.on) cell(p.x, p.y, p.color);
+      if ((p.kind === "root" || p.kind === "trunk") && frame >= p.on)
+        cell(p.x, p.y, p.color);
     });
     for (const [x, y, c] of galaxyCells(frame, logo.branchTop)) cell(x, y, c);
     logo.px.forEach((p, i) => {
-      if ((p.kind === "planet" || p.kind === "dust" || p.kind === "sparkle") && frame >= p.on && i !== off)
+      if (
+        (p.kind === "planet" || p.kind === "dust" || p.kind === "sparkle") &&
+        frame >= p.on &&
+        i !== off
+      )
         cell(p.x, p.y, p.color);
     });
     // tree complete: the root tips (1 pixel each) flash white for 2 frames
-    if (frame >= COMPLETE && frame < COMPLETE + 2) for (const [x, y] of logo.tips) cell(x, y, "#FFFFFF");
+    if (frame >= COMPLETE && frame < COMPLETE + 2)
+      for (const [x, y] of logo.tips) cell(x, y, "#FFFFFF");
   }, [logo, frame, ox, oy]);
   return <canvas ref={ref} width={W_} height={H_} style={canvasStyle} />;
 };
@@ -592,7 +744,9 @@ const Tagline: React.FC = () => {
 // ---------------------------------------------------------------------------
 // The ending
 // ---------------------------------------------------------------------------
-export const CuriosarioOutro: React.FC<{ audio?: boolean }> = ({ audio = true }) => {
+export const CuriosarioOutro: React.FC<{ audio?: boolean }> = ({
+  audio = true,
+}) => {
   const logo = useLogo();
   return (
     <AbsoluteFill style={{ backgroundColor: BG }}>

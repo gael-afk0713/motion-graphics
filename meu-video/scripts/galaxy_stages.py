@@ -14,7 +14,7 @@ from PIL import Image
 import numpy as np
 
 SRC = "public/brand/logo-pixel-80-transparente.png"
-WIDTHS = [17, 20, 24, 28, 33, 38, 41, 44, 46]  # + the original (49 wide); 41/46 smooth the last steps
+WIDTHS = [17, 20, 28, 38, 44]  # + the original (49 wide); fewer steps, each held 3 frames
 # Below 17 squares the area-average turns into a blob, so the two smallest
 # stages are drawn by hand: yellow core + 2 spiral arms (pink near the core,
 # purple outside). Letters = GALAXY_PALETTE indices (see the generated file):
