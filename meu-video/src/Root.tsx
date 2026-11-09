@@ -8,6 +8,7 @@ import { OvelhaVideo } from "./ovelha/OvelhaVideo";
 import { VenusVideo } from "./venus/VenusVideo";
 import { DURATION as FOGUETE_DURATION } from "./foguete/timeline";
 import { FogueteVideo } from "./foguete/FogueteVideo";
+import { CuriosarioOutro, OUTRO_DURATION, OUTRO_FPS } from "./components/CuriosarioOutro";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -42,6 +43,14 @@ export const RemotionRoot: React.FC = () => {
         component={FogueteVideo}
         durationInFrames={FOGUETE_DURATION}
         fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="Outro"
+        component={CuriosarioOutro}
+        durationInFrames={OUTRO_DURATION}
+        fps={OUTRO_FPS}
         width={1080}
         height={1920}
       />
