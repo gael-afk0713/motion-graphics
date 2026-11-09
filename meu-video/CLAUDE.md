@@ -1,22 +1,23 @@
 # Curiosário — regras do projeto
 
-## Ending padrão (a partir do vídeo "Bendegó")
-- Todo vídeo novo termina com a ending padrão `CuriosarioOutro`
+## Ending padrão — OBRIGATÓRIA em todo vídeo gerado a partir de agora
+- TODO vídeo novo termina com a ending padrão `CuriosarioOutro`
   (`src/components/CuriosarioOutro.tsx`, 135 frames = 4,5 s a 30 fps, com voz
-  `public/brand/outro.mp3` e blips 8-bit).
-- Use o wrapper `src/components/WithOutro.tsx`:
+  `public/brand/outro.mp3` e blips 8-bit). Não entregue vídeo sem ela.
+- Use o wrapper `src/components/WithOutro.tsx` (veja Venus/Ovelha/Foguete em
+  `src/Root.tsx`):
   ```tsx
-  // Root.tsx
-  durationInFrames={withOutroDuration(DURATION)}
-  // componente do vídeo
-  <WithOutro contentFrames={DURATION}>...cenas do vídeo...</WithOutro>
+  const MeuVideoComOutro = () => (
+    <WithOutro contentFrames={DURATION}><MeuVideo /></WithOutro>
+  );
+  <Composition component={MeuVideoComOutro} durationInFrames={withOutroDuration(DURATION)} ... />
   ```
 - A ending já fala "Se você gosta de curiosidades como essa, curta, siga e
-  compartilhe!", então o vídeo não precisa de cena própria de CTA.
+  compartilhe!", então o vídeo não precisa de cena própria com essa fala.
 - Não altere a ending sem aprovação (desenho e timing aprovados). Para ver
   sozinha: composição "Outro".
-- Vídeos já publicados (Venus, Lesma, Ovelha, Foguete) NÃO recebem a ending;
-  não mexa no vídeo do Foguete.
+- Já têm a ending: Venus, Ovelha e Foguete (no Foguete ela substitui a cena 7,
+  a da placa). Lesma fica sem (descartado).
 
 ## Regra dos pixels da logo
 Cada pixel da logo é um quadrado de tamanho inteiro e fixo (12 px), em posição

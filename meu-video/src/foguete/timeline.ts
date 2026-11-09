@@ -200,6 +200,9 @@ export const S = SCENE_DURATIONS.map((_, i) =>
 );
 export const DURATION = SCENE_DURATIONS.reduce((a, b) => a + b, 0);
 export const sceneEnd = (i: number) => S[i] + SCENE_DURATIONS[i];
+// what plays before the standard ending: scenes 1-6 (scene 7, the plaque, is
+// replaced by the ending, which says the same "curta, siga e compartilhe")
+export const CONTENT_DURATION = S[6];
 export const at = (i: number, sec: number) => S[i] + Math.round(sec * FPS);
 export const sceneOf = (f: number) => {
   for (let i = S.length - 1; i >= 0; i--) if (f >= S[i]) return i;

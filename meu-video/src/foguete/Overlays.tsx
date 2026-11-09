@@ -135,7 +135,9 @@ export const Captions: React.FC = () => {
 // Camera-layer effects: punch-ins, whip pans, flashes, grading, old film
 // ---------------------------------------------------------------------------
 // transitions: whip pan (alternating direction) except 3->4 and 4->5 (flash)
-export const BOUNDARIES = S.slice(1);
+// scene 7 (the plaque) is replaced by the standard Curiosário ending, so there is
+// no transition (whip/whoosh) into it: the video cuts to the ending after scene 6
+export const BOUNDARIES = S.slice(1, 6);
 const FLASH_AT = [S[3], S[4]];
 const WHIP = 4; // frames on each side of the cut
 const LOOP_FADE = 7;

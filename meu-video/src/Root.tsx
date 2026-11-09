@@ -6,9 +6,28 @@ import { LesmaVideo } from "./lesma/LesmaVideo";
 import { DURATION as OVELHA_DURATION } from "./ovelha/timeline";
 import { OvelhaVideo } from "./ovelha/OvelhaVideo";
 import { VenusVideo } from "./venus/VenusVideo";
-import { DURATION as FOGUETE_DURATION } from "./foguete/timeline";
+import { CONTENT_DURATION as FOGUETE_CONTENT } from "./foguete/timeline";
 import { FogueteVideo } from "./foguete/FogueteVideo";
 import { CuriosarioOutro, OUTRO_DURATION, OUTRO_FPS } from "./components/CuriosarioOutro";
+import { WithOutro, withOutroDuration } from "./components/WithOutro";
+
+// every video ends with the standard Curiosário ending (see CLAUDE.md)
+const VenusComOutro: React.FC = () => (
+  <WithOutro contentFrames={DURATION}>
+    <VenusVideo />
+  </WithOutro>
+);
+const OvelhaComOutro: React.FC = () => (
+  <WithOutro contentFrames={OVELHA_DURATION}>
+    <OvelhaVideo />
+  </WithOutro>
+);
+// Foguete: scenes 1-6, then the ending (replaces scene 7, the plaque)
+const FogueteComOutro: React.FC = () => (
+  <WithOutro contentFrames={FOGUETE_CONTENT}>
+    <FogueteVideo />
+  </WithOutro>
+);
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -16,8 +35,8 @@ export const RemotionRoot: React.FC = () => {
       <MyComposition />
       <Composition
         id="Venus"
-        component={VenusVideo}
-        durationInFrames={DURATION}
+        component={VenusComOutro}
+        durationInFrames={withOutroDuration(DURATION)}
         fps={30}
         width={1080}
         height={1920}
@@ -32,16 +51,16 @@ export const RemotionRoot: React.FC = () => {
       />
       <Composition
         id="Ovelha"
-        component={OvelhaVideo}
-        durationInFrames={OVELHA_DURATION}
+        component={OvelhaComOutro}
+        durationInFrames={withOutroDuration(OVELHA_DURATION)}
         fps={30}
         width={1080}
         height={1920}
       />
       <Composition
         id="Foguete"
-        component={FogueteVideo}
-        durationInFrames={FOGUETE_DURATION}
+        component={FogueteComOutro}
+        durationInFrames={withOutroDuration(FOGUETE_CONTENT)}
         fps={30}
         width={1080}
         height={1920}
