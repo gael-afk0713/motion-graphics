@@ -3,26 +3,28 @@
 // one square per non-transparent pixel of the 80x80 image.
 //
 // MAIN RULE — pixels never deform, on every frame:
-// each logo pixel is a perfect axis-aligned square with an INTEGER size in
-// screen pixels, at INTEGER positions, drawn with fillRect on a canvas
-// (imageSmoothingEnabled = false, image-rendering: pixelated, no CSS
-// transforms, filters or opacity on it). Neighbours share edges: no gaps.
+// every logo pixel is a perfect axis-aligned square of the SAME integer size
+// (CELL px) at integer positions, drawn with fillRect on a canvas
+// (imageSmoothingEnabled = false, image-rendering: pixelated). No CSS / canvas
+// transforms, filters or transparency on the logo. Colours come only from the
+// PNG palette. The logo never changes scale or position.
+// The galaxy grows through pixel-art stages (scripts/galaxy_stages.py) and
+// spins ON THE GRID: inverse mapping + nearest neighbour, never an image rotate.
 import { Audio } from "@remotion/media";
 import { loadFont } from "@remotion/google-fonts/Silkscreen";
 import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   AbsoluteFill,
+  Easing,
   cancelRender,
   continueRender,
   delayRender,
   interpolate,
   random,
-  Sequence,
-  spring,
   staticFile,
   useCurrentFrame,
-  useVideoConfig,
 } from "remotion";
+import { GALAXY_BOX, GALAXY_DUST, GALAXY_PALETTE, GALAXY_STAGES } from "./galaxyStages";
 
 const { fontFamily: PIXEL_FONT } = loadFont("normal", {
   weights: ["700"],
@@ -30,7 +32,7 @@ const { fontFamily: PIXEL_FONT } = loadFont("normal", {
 });
 
 // ---------------------------------------------------------------------------
-// Timing
+// Timing (frames at 30 fps)
 // ---------------------------------------------------------------------------
 export const OUTRO_FPS = 30;
 // ffprobe -show_entries format=duration public/brand/outro.mp3 -> 4.179592 s, + 0.3 s
@@ -38,44 +40,43 @@ export const OUTRO_AUDIO_SEC = 4.179592;
 export const OUTRO_DURATION = Math.ceil((OUTRO_AUDIO_SEC + 0.3) * OUTRO_FPS); // 135
 
 const f = (sec: number) => Math.round(sec * OUTRO_FPS);
-// "growing tree" entrance (frames at 30 fps); each pixel just switches on
-const ROOTS = [0, 7.5]; // 0-0.25 s: roots, from the trunk base out to the tips
-const TRUNK = [6, 13.5]; // 0.2-0.45 s: trunk and branches, bottom to top
-const GALAXY = [12, 24]; // 0.4-0.8 s: galaxy blooms from the yellow core outwards
-const LAST = [24, 27]; // 0.8-0.9 s: planet, then the cream sparkles
-const COMPLETE = 27; // 0.9 s: tree complete -> 2-frame white flash on the root edges
-const SHRINK = 36; // 1.2 s: logo shrinks (integer pixel steps) and moves up (+ "pop")
-const TITLE_START = 40; // CURIOSÁRIO, letter by letter
+const ROOTS = [0, 12]; // 0-0.4 s: roots from the trunk base out to the tips
+const TRUNK = [0, 12]; // 0-0.4 s: trunk and branches, bottom to top
+// galaxy: one pixel-art stage after another (every 2-3 frames), full at 0.73 s
+const STAGE_AT = [0, 2, 4, 7, 9, 12, 14, 17, 19, 22];
+const SPIN_END = STAGE_AT[STAGE_AT.length - 1]; // ~1 turn, easeOutCubic, ends at 0°
+const LAST = 24; // 0.8 s: planet, then loose dots and cream sparkles (24-26)
+const COMPLETE = 27; // 0.9 s: tree complete -> root tips flash white for 2 frames
+const TITLE_START = 18; // 0.6 s: CURIOSÁRIO, letter by letter
 const TITLE_STEP = 2;
-const TAG_IN = 58; // CURTA • SIGA • COMPARTILHE appears (white)
+const TAG_IN = 38; // CTA appears (white) once the name is complete
 
 // Spoken word starts (seconds in outro.mp3), from ffmpeg silencedetect
 // (-30 dB, d=0.04): speech stretches 2.252-2.655 | 2.746-3.205 | 3.267-4.007
-const TAG_WORDS: { t: string; at: number }[] = [
-  { t: "CURTA", at: 2.252 },
-  { t: "SIGA", at: 2.746 },
-  { t: "COMPARTILHE", at: 3.267 },
-];
+const TAG_AT: Record<string, number> = { CURTA: 2.252, SIGA: 2.746, COMPARTILHE: 3.267 };
+// CTA at +40% (84 px) does not fit one line in Silkscreen Bold (max ~60 px in
+// 1080 px), so it is set on two lines.
+const TAG_LINES = [["CURTA", "SIGA"], ["COMPARTILHE"]];
 
 // ---------------------------------------------------------------------------
-// Layout (1080x1920). The final group logo + name + CTA is centred vertically:
-// logo 488-1172, accent top 1232, name caps 1271-1336, CTA caps 1386-1423.
+// Layout (1080x1920): logo + name + CTA centred vertically (438 ... 1483)
 // ---------------------------------------------------------------------------
 const W_ = 1080;
 const H_ = 1920;
-const BIG = { cell: 15, cy: H_ / 2 }; // 51 x 15 = 765 px wide (~70%)
-const SMALL = { cell: 12, cy: 830 }; // 51 x 12 = 612 px wide (~55%)
+const CELL = 12; // px per logo pixel, fixed: 51 x 12 = 612 px wide (~57%)
+const LOGO_TOP = 438; // logo 438-1122
 
 // Silkscreen Bold, measured in the render: 1 font pixel = 0.1229 em, glyph left bearing = 0.1376 em
 const FONT_PX = 0.1229;
 const BEARING = 0.1376;
+const CAP_RATIO = 0.423; // cap top inside a 1.3 line box (measured)
 const TITLE_SIZE = 109;
 const PX = TITLE_SIZE * FONT_PX; // 13.4 px
-const CAP_TOP = 0.423 * TITLE_SIZE; // cap top inside a 1.3 line box (measured)
-const TITLE_CAP_Y = 1271;
-// 48 * 1.25: at +30% (62 px) Silkscreen Bold is wider than the 1080 frame
-const TAG_SIZE = 60;
-const TAG_CAP_Y = 1386;
+const CAP_TOP = CAP_RATIO * TITLE_SIZE;
+const TITLE_CAP_Y = 1222; // accent top 1182, caps 1222-1289
+const TAG_SIZE = 84; // +40%
+const TAG_CAP_Y = 1339; // line 1 caps 1339-1391, line 2 caps 1431-1483
+const TAG_LINE_GAP = 92;
 
 const KEY = "#FFD23F";
 const BG = "#060C28";
@@ -86,22 +87,16 @@ const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 // ---------------------------------------------------------------------------
 // Logo pixels (read from the 80x80 PNG at render time) + growth order
 // ---------------------------------------------------------------------------
-type Kind = "root" | "trunk" | "galaxy" | "planet" | "sparkle";
+type Kind = "root" | "trunk" | "planet" | "sparkle" | "dust" | "galaxy";
 type Px = { x: number; y: number; color: string; kind: Kind; on: number };
-type Logo = {
-  px: Px[];
-  sparkles: number[]; // indices into px, in blink order
-  rootEdge: [number, number][]; // empty cells touching a root pixel (flash)
-  x0: number;
-  y0: number;
-  w: number;
-  h: number;
-};
+type Logo = { px: Px[]; sparkles: number[]; tips: [number, number][]; x0: number; y0: number; w: number };
 
 const CORE = { x: 38.5, y: 28 }; // centre of the yellow galaxy core
 const CREAM = "249,230,164";
 const BROWNS = ["178,91,46", "134,61,35", "80,34,24"];
-const N8 = [-1, 0, 1].flatMap((dx) => [-1, 0, 1].map((dy) => [dx, dy])).filter(([a, b]) => a || b);
+const N8 = [-1, 0, 1]
+  .flatMap((dx) => [-1, 0, 1].map((dy) => [dx, dy]))
+  .filter(([a, b]) => a || b);
 
 // geodesic (8-connected) distance inside a set, from seed cells
 const bfs = (cells: Set<string>, seeds: string[]) => {
@@ -130,21 +125,22 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
     }
   const xy = (k: string) => k.split(",").map(Number) as [number, number];
 
-  // planet (top right, brown rings + cream): component of the brown pixel at y <= 20
+  // planet (top right, brown rings + cream): component of a brown pixel at y <= 20
   const top = new Set([...raw.keys()].filter((k) => xy(k)[1] <= 20 && xy(k)[0] >= 50));
   const ringSeed = [...top].find((k) => BROWNS.includes(raw.get(k)!))!;
   const planet = new Set(bfs(top, [ringSeed]).keys());
+  const dust = new Set(GALAXY_DUST.map(([x, y]) => `${x},${y}`));
 
   const kind = new Map<string, Kind>();
   for (const [k, c] of raw) {
     const [x, y] = xy(k);
     const [r, g] = c.split(",").map(Number);
     if (planet.has(k)) kind.set(k, "planet");
-    else if (g > 200 && g > r + 40) kind.set(k, "root");
+    else if (g > 200 && g > r + 30) kind.set(k, "root"); // aqua + light-mint tips
     else if (BROWNS.includes(c)) kind.set(k, "trunk");
-    else if (c === CREAM && Math.hypot(x + 0.5 - CORE.x, y + 0.5 - CORE.y) > 8)
-      kind.set(k, "sparkle");
-    else kind.set(k, "galaxy");
+    else if (c === CREAM && Math.hypot(x + 0.5 - CORE.x, y + 0.5 - CORE.y) > 8) kind.set(k, "sparkle");
+    else if (dust.has(k)) kind.set(k, "dust");
+    else kind.set(k, "galaxy"); // drawn from GALAXY_STAGES (last stage = these pixels)
   }
   const of = (t: Kind) => [...kind.keys()].filter((k) => kind.get(k) === t);
   const touches = (k: string, t: Kind) => {
@@ -152,37 +148,36 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
     return N8.some(([dx, dy]) => kind.get(`${x + dx},${y + dy}`) === t);
   };
 
-  // each pixel's switch-on frame
   const on = new Map<string, number>();
-  const spread = (keys: string[], dist: (k: string) => number, [a, b]: number[]) => {
-    const max = Math.max(...keys.map(dist), 1);
-    keys.forEach((k) => on.set(k, Math.floor(a + (dist(k) / max) * (b - a - 0.5))));
-  };
-  const geo = (keys: string[], seeds: string[], fallback: (k: string) => number) => {
+  const grow = (keys: string[], seeds: string[], [a, b]: number[]) => {
     const d = bfs(new Set(keys), seeds);
-    const max = Math.max(...d.values(), 0);
-    return (k: string) => d.get(k) ?? max + fallback(k);
+    const max = Math.max(...d.values(), 1);
+    keys.forEach((k) => on.set(k, Math.floor(a + ((d.get(k) ?? max) / max) * (b - a - 0.5))));
+    return d;
   };
   const roots = of("root");
   const trunk = of("trunk");
-  // roots: grow from the pixels touching the trunk out to the tips
-  spread(roots, geo(roots, roots.filter((k) => touches(k, "trunk")), () => 0), ROOTS);
-  // trunk: grow from the pixels touching the roots, up into the branches
-  spread(
-    trunk,
-    geo(trunk, trunk.filter((k) => touches(k, "root")), (k) => 60 - xy(k)[1]),
-    TRUNK,
-  );
-  // galaxy: by distance from the yellow core
-  spread(
-    of("galaxy"),
-    (k) => Math.hypot(xy(k)[0] + 0.5 - CORE.x, xy(k)[1] + 0.5 - CORE.y),
-    GALAXY,
-  );
-  of("planet").forEach((k) => on.set(k, LAST[0]));
-  // sparkles: one after the other, last
-  const sp = of("sparkle").sort((a, b) => random(`o${a}`) - random(`o${b}`));
-  sp.forEach((k, i) => on.set(k, Math.floor(LAST[0] + 1 + (i / sp.length) * (LAST[1] - LAST[0] - 1))));
+  // roots grow from the pixels touching the trunk; trunk from the pixels touching the roots
+  const rootD = grow(roots, roots.filter((k) => touches(k, "trunk")), ROOTS);
+  grow(trunk, trunk.filter((k) => touches(k, "root")), TRUNK);
+  of("planet").forEach((k) => on.set(k, LAST));
+  // loose dots and sparkles: one after the other, last
+  const late = [...of("dust"), ...of("sparkle")].sort((a, b) => random(`o${a}`) - random(`o${b}`));
+  late.forEach((k, i) => on.set(k, LAST + Math.floor((i / late.length) * 3)));
+  of("galaxy").forEach((k) => on.set(k, Infinity));
+
+  // root tips: local maxima of the distance along the roots (1 pixel per tip)
+  const tips: [number, number][] = [];
+  const taken = new Set<string>();
+  for (const k of roots) {
+    const d = rootD.get(k) ?? 0;
+    const [x, y] = xy(k);
+    const nb = N8.map(([dx, dy]) => `${x + dx},${y + dy}`).filter((n) => rootD.has(n));
+    if (d > 0 && nb.every((n) => rootD.get(n)! <= d) && !nb.some((n) => taken.has(n))) {
+      tips.push([x, y]);
+      taken.add(k);
+    }
+  }
 
   const keys = [...raw.keys()];
   const px: Px[] = keys.map((k) => ({
@@ -192,29 +187,15 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
     kind: kind.get(k)!,
     on: on.get(k)!,
   }));
-  const sparkles = sp.map((k) => keys.indexOf(k));
-
-  // flash: empty cells (4-neighbours) around the roots
-  const edge = new Set<string>();
-  for (const k of roots) {
-    const [x, y] = xy(k);
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      const n = `${x + dx},${y + dy}`;
-      if (!raw.has(n)) edge.add(n);
-    }
-  }
+  const sparkles = keys.flatMap((k, i) => (kind.get(k) === "sparkle" ? [i] : []));
   const xs = px.map((p) => p.x);
-  const ys = px.map((p) => p.y);
-  const x0 = Math.min(...xs);
-  const y0 = Math.min(...ys);
   return {
     px,
-    sparkles,
-    rootEdge: [...edge].map(xy),
-    x0,
-    y0,
-    w: Math.max(...xs) + 1 - x0,
-    h: Math.max(...ys) + 1 - y0,
+    sparkles: sparkles.sort((a, b) => random(`b${a}`) - random(`b${b}`)),
+    tips,
+    x0: Math.min(...xs),
+    y0: Math.min(...px.map((p) => p.y)),
+    w: Math.max(...xs) + 1 - Math.min(...xs),
   };
 };
 
@@ -248,6 +229,47 @@ const useLogo = () => {
       .catch((e) => cancelRender(e));
   }, [handle]);
   return logo;
+};
+
+// ---------------------------------------------------------------------------
+// Galaxy: stage + rotation on the grid (inverse mapping, nearest neighbour)
+// ---------------------------------------------------------------------------
+const STAGES = GALAXY_STAGES.map((rows) => {
+  const w = rows[0].length;
+  const h = rows.length;
+  // centred on the galaxy box centre (= top of the trunk), snapped to the grid
+  const cx = GALAXY_BOX.x0 + GALAXY_BOX.w / 2;
+  const cy = GALAXY_BOX.y0 + GALAXY_BOX.h / 2;
+  return { rows, w, h, ox: Math.round(cx - w / 2), oy: Math.round(cy - h / 2) };
+});
+
+// cells [x, y, colour] of the galaxy at this frame, in logo-grid coordinates
+const galaxyCells = (frame: number): [number, number, string][] => {
+  let si = 0;
+  STAGE_AT.forEach((at, i) => {
+    if (frame >= at) si = i;
+  });
+  const s = STAGES[si];
+  const k = Math.min(1, frame / SPIN_END);
+  const angle = -2 * Math.PI * (1 - Easing.out(Easing.cubic)(k)); // 1 turn -> 0
+  const out: [number, number, string][] = [];
+  const pcx = s.ox + s.w / 2;
+  const pcy = s.oy + s.h / 2;
+  const cos = Math.cos(-angle);
+  const sin = Math.sin(-angle);
+  const R = Math.ceil(Math.hypot(s.w, s.h) / 2) + 1;
+  for (let gy = Math.floor(pcy - R); gy <= pcy + R; gy++)
+    for (let gx = Math.floor(pcx - R); gx <= pcx + R; gx++) {
+      // centre of the destination cell, rotated back into the stage
+      const dx = gx + 0.5 - pcx;
+      const dy = gy + 0.5 - pcy;
+      const sx = Math.floor(dx * cos - dy * sin + s.w / 2);
+      const sy = Math.floor(dx * sin + dy * cos + s.h / 2);
+      if (sx < 0 || sy < 0 || sx >= s.w || sy >= s.h) continue;
+      const ch = s.rows[sy][sx];
+      if (ch !== ".") out.push([gx, gy, GALAXY_PALETTE[ch.charCodeAt(0) - 97]]);
+    }
+  return out;
 };
 
 // ---------------------------------------------------------------------------
@@ -287,20 +309,8 @@ const Stars: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Pixel logo on a canvas
+// Pixel logo on a canvas (fixed size and position)
 // ---------------------------------------------------------------------------
-const useGeometry = (logo: Logo) => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const s = spring({ frame: frame - SHRINK, fps, config: { damping: 200 }, durationInFrames: 24 });
-  // integer pixel size: 15 -> 14 -> 13 -> 12, integer origin
-  const cell = Math.round(interpolate(s, [0, 1], [BIG.cell, SMALL.cell]));
-  const cy = interpolate(s, [0, 1], [BIG.cy, SMALL.cy]);
-  const ox = Math.round(W_ / 2 - (logo.w * cell) / 2);
-  const oy = Math.round(cy - (logo.h * cell) / 2);
-  return { cell, ox, oy };
-};
-
 const canvasStyle: React.CSSProperties = {
   position: "absolute",
   left: 0,
@@ -309,30 +319,30 @@ const canvasStyle: React.CSSProperties = {
   height: H_,
   imageRendering: "pixelated",
 };
+const originOf = (logo: Logo) => ({ ox: Math.round(W_ / 2 - (logo.w * CELL) / 2), oy: LOGO_TOP });
 
 // soft halo BEHIND the roots (the root pixels themselves stay untouched on top)
 const RootHalo: React.FC<{ logo: Logo }> = ({ logo }) => {
   const frame = useCurrentFrame();
   const ref = useRef<HTMLCanvasElement>(null);
-  const { cell, ox, oy } = useGeometry(logo);
+  const { ox, oy } = originOf(logo);
   const glowIn = interpolate(frame, [COMPLETE - 2, COMPLETE + 4], [0, 1], clamp);
   const beat = 0.65 + 0.35 * Math.sin((frame - COMPLETE) / 6);
   const glow = glowIn * (COMPLETE + 4 > frame ? 1 : beat);
   useLayoutEffect(() => {
     const ctx = ref.current!.getContext("2d")!;
     ctx.clearRect(0, 0, W_, H_);
-    if (glow <= 0) return;
     ctx.fillStyle = ROOT_GLOW;
     for (const p of logo.px)
       if (p.kind === "root")
-        ctx.fillRect(ox + (p.x - logo.x0) * cell, oy + (p.y - logo.y0) * cell, cell, cell);
-  }, [logo, cell, ox, oy, glow]);
+        ctx.fillRect(ox + (p.x - logo.x0) * CELL, oy + (p.y - logo.y0) * CELL, CELL, CELL);
+  }, [logo, ox, oy]);
   return (
     <canvas
       ref={ref}
       width={W_}
       height={H_}
-      style={{ ...canvasStyle, filter: `blur(${cell * 1.2}px)`, opacity: 0.9 * glow }}
+      style={{ ...canvasStyle, filter: `blur(${CELL * 1.2}px)`, opacity: 0.9 * glow }}
     />
   );
 };
@@ -340,28 +350,30 @@ const RootHalo: React.FC<{ logo: Logo }> = ({ logo }) => {
 const PixelLogo: React.FC<{ logo: Logo }> = ({ logo }) => {
   const frame = useCurrentFrame();
   const ref = useRef<HTMLCanvasElement>(null);
-  const { cell, ox, oy } = useGeometry(logo);
+  const { ox, oy } = originOf(logo);
   useLayoutEffect(() => {
     const ctx = ref.current!.getContext("2d")!;
     ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, W_, H_);
-    // sparkles: after the tree is complete, one at a time switches off briefly
-    const blinkStep = 4; // frames per sparkle
+    const cell = (x: number, y: number, color: string) => {
+      ctx.fillStyle = color;
+      ctx.fillRect(ox + (x - logo.x0) * CELL, oy + (y - logo.y0) * CELL, CELL, CELL);
+    };
+    // sparkles: once the tree is complete, one at a time switches off for 4 frames
     const n = logo.sparkles.length;
-    const off =
-      frame >= COMPLETE + 6 ? logo.sparkles[Math.floor((frame - COMPLETE - 6) / blinkStep) % n] : -1;
-    logo.px.forEach((p, i) => {
-      if (frame < p.on || i === off) return;
-      ctx.fillStyle = p.color; // 100% the PNG colour
-      ctx.fillRect(ox + (p.x - logo.x0) * cell, oy + (p.y - logo.y0) * cell, cell, cell);
+    const off = frame >= COMPLETE + 4 ? logo.sparkles[Math.floor((frame - COMPLETE - 4) / 4) % n] : -1;
+    // 1) roots + trunk, 2) galaxy stage on top, 3) planet, dust, sparkles
+    logo.px.forEach((p) => {
+      if ((p.kind === "root" || p.kind === "trunk") && frame >= p.on) cell(p.x, p.y, p.color);
     });
-    // tree complete: 2-frame white flash on the edges of the roots
-    if (frame >= COMPLETE && frame < COMPLETE + 2) {
-      ctx.fillStyle = "#FFFFFF";
-      for (const [x, y] of logo.rootEdge)
-        ctx.fillRect(ox + (x - logo.x0) * cell, oy + (y - logo.y0) * cell, cell, cell);
-    }
-  }, [logo, frame, cell, ox, oy]);
+    for (const [x, y, c] of galaxyCells(frame)) cell(x, y, c);
+    logo.px.forEach((p, i) => {
+      if ((p.kind === "planet" || p.kind === "dust" || p.kind === "sparkle") && frame >= p.on && i !== off)
+        cell(p.x, p.y, p.color);
+    });
+    // tree complete: the root tips (1 pixel each) flash white for 2 frames
+    if (frame >= COMPLETE && frame < COMPLETE + 2) for (const [x, y] of logo.tips) cell(x, y, "#FFFFFF");
+  }, [logo, frame, ox, oy]);
   return <canvas ref={ref} width={W_} height={H_} style={canvasStyle} />;
 };
 
@@ -444,60 +456,64 @@ const Tagline: React.FC = () => {
   const frame = useCurrentFrame();
   const appear = interpolate(frame, [TAG_IN, TAG_IN + 6], [0, 1], clamp);
   const u = TAG_SIZE * FONT_PX; // font pixel
+  const letter = TAG_SIZE * 0.72; // one letter advance: the space kept around each "•"
   const dot = (
     <div
       style={{
         width: Math.round(u * 1.5),
         height: Math.round(u * 1.5),
         backgroundColor: "#FFFFFF",
-        margin: `0 ${u * 1.1}px`,
+        margin: `0 ${letter}px`,
         boxShadow: `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
       }}
     />
   );
   return (
-    <div
-      style={{
-        position: "absolute",
-        top: TAG_CAP_Y - 0.423 * TAG_SIZE,
-        left: 0,
-        right: 0,
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        fontFamily: PIXEL_FONT,
-        fontWeight: 700,
-        fontSize: TAG_SIZE,
-        lineHeight: 1.3,
-        letterSpacing: -3.5,
-        opacity: appear,
-        translate: `0 ${(1 - appear) * 16}px`,
-      }}
-    >
-      {TAG_WORDS.map((w, i) => {
-        const on = frame >= f(w.at);
-        const k = (frame - f(w.at)) / 6;
-        const hop = k >= 0 && k <= 1 ? Math.sin(Math.PI * k) : 0;
-        return (
-          <React.Fragment key={w.t}>
-            {i > 0 ? dot : null}
-            <span
-              style={{
-                display: "inline-block",
-                color: on ? KEY : "#FFFFFF",
-                scale: 1 + 0.15 * hop,
-                // hard pixel shadow + a small, tight glow (keeps the letters crisp)
-                textShadow: on
-                  ? `0 ${u * 0.6}px 0 #5A3A00, 0 0 ${6 + 4 * hop}px rgba(255,210,63,0.45)`
-                  : `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
-              }}
-            >
-              {w.t}
-            </span>
-          </React.Fragment>
-        );
-      })}
-    </div>
+    <AbsoluteFill style={{ opacity: appear, translate: `0 ${(1 - appear) * 16}px` }}>
+      {TAG_LINES.map((words, li) => (
+        <div
+          key={li}
+          style={{
+            position: "absolute",
+            top: TAG_CAP_Y + li * TAG_LINE_GAP - CAP_RATIO * TAG_SIZE,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            fontFamily: PIXEL_FONT,
+            fontWeight: 700,
+            fontSize: TAG_SIZE,
+            lineHeight: 1.3,
+          }}
+        >
+          {words.map((w, i) => {
+            const at = f(TAG_AT[w]);
+            const on = frame >= at;
+            const k = (frame - at) / 6;
+            const hop = k >= 0 && k <= 1 ? Math.sin(Math.PI * k) : 0;
+            return (
+              <React.Fragment key={w}>
+                {i > 0 ? dot : null}
+                <span
+                  style={{
+                    display: "inline-block",
+                    color: on ? KEY : "#FFFFFF",
+                    scale: 1 + 0.12 * hop,
+                    // hard pixel shadow + a very subtle, tight glow (letters stay crisp)
+                    textShadow: on
+                      ? `0 ${u * 0.6}px 0 #5A3A00, 0 0 ${4 + 3 * hop}px rgba(255,210,63,0.3)`
+                      : `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
+                  }}
+                >
+                  {w}
+                </span>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      ))}
+    </AbsoluteFill>
   );
 };
 
@@ -520,21 +536,10 @@ export const CuriosarioOutro: React.FC<{ audio?: boolean }> = ({ audio = true })
       {audio ? (
         <>
           <Audio src={staticFile("brand/outro.mp3")} />
-          {/* SFX well below the voice */}
+          {/* 8-bit blips during the growth, well below the voice */}
           <Audio src={staticFile("brand/sfx/blips.wav")} volume={0.12} />
-          <SfxAt frame={SHRINK} src="brand/sfx/pop.wav" volume={0.22} />
         </>
       ) : null}
     </AbsoluteFill>
   );
 };
-
-const SfxAt: React.FC<{ frame: number; src: string; volume: number }> = ({
-  frame,
-  src,
-  volume,
-}) => (
-  <Sequence from={frame} layout="none">
-    <Audio src={staticFile(src)} volume={volume} />
-  </Sequence>
-);
