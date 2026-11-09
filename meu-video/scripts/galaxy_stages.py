@@ -14,7 +14,7 @@ from PIL import Image
 import numpy as np
 
 SRC = "public/brand/logo-pixel-80-transparente.png"
-WIDTHS = [17, 20, 24, 28, 33, 38, 44]  # + the original (49 wide)
+WIDTHS = [17, 20, 24, 28, 33, 38, 41, 44, 46]  # + the original (49 wide); 41/46 smooth the last steps
 # Below 17 squares the area-average turns into a blob, so the two smallest
 # stages are drawn by hand: yellow core + 2 spiral arms (pink near the core,
 # purple outside). Letters = GALAXY_PALETTE indices (see the generated file):
@@ -122,6 +122,17 @@ stages.append([[gal.get((gx0 + i, gy0 + j)) for i in range(GW)] for j in range(G
 letters = "abcdefghijklmnop"
 stages = [[[None if ch == "." else palette[letters.index(ch)] for ch in row] for row in g] for g in HAND] + stages
 
+def centroid(g):
+    pts = [(i + 0.5, j + 0.5) for j, row in enumerate(g) for i, c in enumerate(row) if c]
+    return (sum(p[0] for p in pts) / len(pts), sum(p[1] for p in pts) / len(pts))
+
+# ellipse of the PNG galaxy (second moments of its pixels): tilt + minor/major ratio
+_pts = np.array([(x + 0.5, y + 0.5) for (x, y) in gal])
+_cov = np.cov((_pts - _pts.mean(0)).T)
+_ev, _evec = np.linalg.eigh(_cov)
+ELLIPSE_ANGLE = float(np.arctan2(_evec[1, 1], _evec[0, 1]))  # major axis direction (rad, y down)
+ELLIPSE_RATIO = float(np.sqrt(_ev[0] / _ev[1]))  # minor / major
+
 def to_rows(g):
     idx = {c: i for i, c in enumerate(palette)}
     return ["".join("." if c is None else "abcdefghijklmnop"[idx[c]] for c in row) for row in g]
@@ -134,8 +145,12 @@ with open(out_ts, "w") as f:
     f.write(f"export const GALAXY_BOX = {json.dumps(dict(x0=gx0, y0=gy0, w=GW, h=GH))};\n")
     f.write(f"export const GALAXY_DUST: [number, number][] = {json.dumps(dust)};\n")
     f.write(f"export const GALAXY_PALETTE = {json.dumps(['rgb(%d,%d,%d)' % c for c in palette])};\n")
+    f.write(f"// ellipse measured on the PNG galaxy: major-axis tilt (rad, y down) and minor/major ratio\n")
+    f.write(f"export const GALAXY_ELLIPSE = {json.dumps(dict(angle=round(ELLIPSE_ANGLE, 4), ratio=round(ELLIPSE_RATIO, 4)))};\n")
+    f.write("// centroid of each stage (in its own cells): pivot of the spin\n")
+    f.write(f"export const GALAXY_CENTROIDS = {json.dumps([[round(c, 3) for c in centroid(g)] for g in stages])};\n")
     f.write("export const GALAXY_STAGES: string[][] = " + json.dumps([to_rows(g) for g in stages], indent=1) + ";\n")
-print("dust", len(dust), "galaxy box", gx0, gy0, GW, GH, "palette", len(palette), "stages", [len(s[0]) for s in stages])
+print("ellipse tilt deg", round(np.degrees(ELLIPSE_ANGLE), 1), "ratio", round(ELLIPSE_RATIO, 3), "dust", len(dust), "galaxy box", gx0, gy0, GW, GH, "palette", len(palette), "stages", [len(s[0]) for s in stages])
 
 if len(sys.argv) > 2:
     # preview: all stages side by side, same square size, on the night-blue background

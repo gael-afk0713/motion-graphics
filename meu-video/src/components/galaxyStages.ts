@@ -4,6 +4,10 @@
 export const GALAXY_BOX = {"x0": 15, "y0": 14, "w": 49, "h": 29};
 export const GALAXY_DUST: [number, number][] = [[15, 28], [15, 36], [18, 22], [19, 35], [20, 20], [24, 44], [25, 17], [31, 47], [46, 13], [46, 14], [51, 42], [51, 46], [59, 39], [61, 24], [62, 24], [63, 26], [63, 27], [64, 35], [65, 29]];
 export const GALAXY_PALETTE = ["rgb(45,9,71)", "rgb(71,19,142)", "rgb(82,11,79)", "rgb(97,27,171)", "rgb(125,36,187)", "rgb(140,26,114)", "rgb(161,51,204)", "rgb(186,36,159)", "rgb(227,51,142)", "rgb(249,62,116)", "rgb(249,230,164)", "rgb(250,91,72)", "rgb(252,166,61)"];
+// ellipse measured on the PNG galaxy: major-axis tilt (rad, y down) and minor/major ratio
+export const GALAXY_ELLIPSE = {"angle": -3.132, "ratio": 0.5938};
+// centroid of each stage (in its own cells): pivot of the spin
+export const GALAXY_CENTROIDS = [[5.5, 3.5], [7.0, 4.5], [8.459, 5.17], [9.93, 6.315], [11.72, 7.495], [13.964, 9.135], [16.293, 10.715], [18.793, 11.758], [20.264, 12.873], [21.638, 13.933], [22.911, 14.381], [24.234, 15.524]];
 export const GALAXY_STAGES: string[][] = [
  [
   "...eeggh...",
@@ -133,6 +137,32 @@ export const GALAXY_STAGES: string[][] = [
   ".........d.d..................b......."
  ],
  [
+  "....................bbdb.................",
+  "..............d.eeedded..................",
+  "............adegggg....hfhedd............",
+  ".............db.....hhhhiihgg............",
+  "................hjjhhjji..c.g............",
+  ".......dbb...hfhijjjlfaa.aa..............",
+  "......dedbf.iijjllffacfffffff............",
+  ".....deg.aijlllfmcaffflljjiiihhegd.......",
+  "....dgg..fhllmfccfllmmmmmmljffhhgedaa....",
+  "...dgg..hhjlfccclmmmlljihmmljcaceeed.....",
+  "..deg...fjllcclmmmmmmmmmjilmmlcacdeee....",
+  "..de...aalllcclmjmkkkkkmmlcfmljcc..edd...",
+  "..dde..ccfllfffmmmkkkkmmmlcclmjhf..dgdb..",
+  "..eeedacccllmmffmmmmmmjlmjcclmjhf....ged.",
+  ".h.eeeeaacclmmmmmmmmmlmmljcfmljha....geee",
+  "bh..eeghfcfccflllljllmljicfmljhfc....eeee",
+  "b....gghiijffccfiillllffcflljihfc...egee.",
+  ".......hhhiijiflljjjffcffljjihfabaaabbd..",
+  ".....dd....hijjjjjfcacfljjhhhfahfa.aaa...",
+  "....dgdd.....caaaaaccljjhhfaaa.hf...a....",
+  "....dggeg...i...acciiihffaa....h.........",
+  ".....deeged..h...iiiffcaaa......ddd......",
+  "......ddedddd.....ff.aafc.......bdd......",
+  "..........d.e....................b......."
+ ],
+ [
   ".....................bbddb..................",
   "...............d.eeeddddd...................",
   "..............degggged....c..dd.............",
@@ -159,6 +189,35 @@ export const GALAXY_STAGES: string[][] = [
   ".....deeegdddb....hihfccaaaa......bed.......",
   ".......ddddddb......c..a.m........bdd.......",
   "...........d.e.....................b........"
+ ],
+ [
+  "......................bbddb...................",
+  "................d.eeeddddd....................",
+  "...............degggged....c..bb..............",
+  ".............abdeg.g.....hhhheeee.............",
+  "...............da.....hhiiiiifhgg.............",
+  ".................hhjjiijiff..a..g.............",
+  ".......ddbbb...hfiijjjlfcaaaaaa...............",
+  "......deedbfijijjjllffcacfffffffh.............",
+  ".....degg.ahjllllfmcacffllljjjiiihhege........",
+  "....degg..fhjlmmfcfcllmmmmmmmljjffhggedba.....",
+  "...degg..fhillffcclmmmmlljiimmllfacbeeedb.....",
+  "..ddgg...filmfcclmmmmmmmmmmihmmmlfaabeeee.....",
+  "..deg...aallmccclmjmmkkkkmmllccmmlfaaadeee....",
+  "..ddd...aafllccfmmjmkkkkkmmmlccmmlihfa.eedbb..",
+  "..ddee.affcllmfffmmmkkkkmlmmjcccmmihfa.begdd..",
+  "...eeedaaccflmmmffmmmmmmljmmjccfmmihfa...ggdd.",
+  ".h..eeedcaccfllmmmmmmmmlmmmjicfmmlifac...ggeee",
+  "bhh..egghfcfccclllllljllmljicfmmljhffi...eeeee",
+  "bb....ghhiijfffccfffjllllffcfllljihfcf..eehde.",
+  "........hhhiijjfflllljiffcfflljjihcabaaabddd..",
+  "......d.....hijjjjjjifcccflljiiihccffaaaaab...",
+  ".....eed.......fffffcaacfjjiihfccafhfa..aa....",
+  ".....egee....ii...aaacfjjiihfca....h..........",
+  ".....degggee...i...fijihhfccaa.......b........",
+  "......ddegedddb....hhhfccaaaa.......ded.......",
+  ".......dddddddb......c..a.m.........bdd.......",
+  "...........d..e......................b........"
  ],
  [
   "........................bbddb....................",

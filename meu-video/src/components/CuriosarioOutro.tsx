@@ -24,7 +24,14 @@ import {
   staticFile,
   useCurrentFrame,
 } from "remotion";
-import { GALAXY_BOX, GALAXY_DUST, GALAXY_PALETTE, GALAXY_STAGES } from "./galaxyStages";
+import {
+  GALAXY_BOX,
+  GALAXY_CENTROIDS,
+  GALAXY_DUST,
+  GALAXY_ELLIPSE,
+  GALAXY_PALETTE,
+  GALAXY_STAGES,
+} from "./galaxyStages";
 
 const { fontFamily: PIXEL_FONT } = loadFont("normal", {
   weights: ["700"],
@@ -43,17 +50,23 @@ const f = (sec: number) => Math.round(sec * OUTRO_FPS);
 // Tree: every pixel switches on when the growth front, travelling ALONG the tree
 // (BFS from the trunk base), reaches it. Trunk + branches + roots done at 0.5 s.
 const GROW_END = 15;
-// galaxy: born on the branches (0.3 s), one approved stage every 2 frames,
-// ~1 turn (easeOutCubic) ending at exactly 0° on the full PNG galaxy at 0.9 s
-const STAGE_AT = [9, 11, 13, 15, 17, 19, 21, 23, 25, 27];
-const SPIN_START = STAGE_AT[0];
+// galaxy: born on the branches (0.3 s), one approved stage every 1-2 frames.
+// The 3 smallest stages (11, 14, 17 wide) do not spin; from the 4th stage on,
+// the spiral arms turn INSIDE the fixed ellipse: ~0.5 turn, easeOutCubic,
+// ending at exactly 0° on the full PNG galaxy at 0.9 s.
+//                 11  14  17  20  24  28  33  38  41  44  46  49
+const STAGE_AT = [9, 11, 13, 15, 17, 18, 20, 21, 23, 24, 26, 27];
+const NO_SPIN_STAGES = 3;
+const SPIN_START = STAGE_AT[NO_SPIN_STAGES];
 const SPIN_END = STAGE_AT[STAGE_AT.length - 1];
+const SPIN_TURNS = 0.5;
 // while growing, the galaxy's bottom edge sits 2 pixels above the highest branch
-// tip; over the last ~0.15 s it slides down (whole grid steps) to the PNG position
+// tip; once it is complete it slides down to the PNG position in whole grid
+// rows over the next 5 frames (never in the same frame as a stage change)
 const GALAXY_GAP = 2;
-const SLIDE_START = SPIN_END - 4;
-const LAST = 28; // planet, then loose dots and cream sparkles (28-30)
-const COMPLETE = 30; // 1.0 s: tree complete -> root tips flash white for 2 frames
+const SLIDE = [SPIN_END, SPIN_END + 5]; // moves on frames 28-32
+const LAST = 33; // planet, then loose dots and cream sparkles (33-35)
+const COMPLETE = 35; // 1.17 s: tree complete -> root tips flash white for 2 frames
 const TITLE_START = 18; // 0.6 s: CURIOSÁRIO, letter by letter
 const TITLE_STEP = 2;
 const TAG_IN = 38; // CTA appears (white) once the name is complete
@@ -274,42 +287,63 @@ const STAGES = GALAXY_STAGES.map((rows) => {
 });
 
 // cells [x, y, colour] of the galaxy at this frame, in logo-grid coordinates
+// Ellipse-preserving spin: for each destination cell, undo the ellipse's tilt and
+// flattening (-> circle), rotate back by the current angle, re-apply flattening
+// and tilt, then take the nearest stage cell. The oval outline never turns; only
+// the arms move inside it. Angle 0 = identity (the PNG).
+const TILT = GALAXY_ELLIPSE.angle;
+const RATIO = GALAXY_ELLIPSE.ratio; // minor / major
+const spinSample = (dx: number, dy: number, angle: number): [number, number] => {
+  const ct = Math.cos(TILT);
+  const st = Math.sin(TILT);
+  // into the ellipse frame (major axis along u), then stretch the minor axis -> circle
+  const u = dx * ct + dy * st;
+  const v = (-dx * st + dy * ct) / RATIO;
+  // inverse rotation
+  const ca = Math.cos(-angle);
+  const sa = Math.sin(-angle);
+  const u2 = u * ca - v * sa;
+  const v2 = (u * sa + v * ca) * RATIO;
+  // back to the grid
+  return [u2 * ct - v2 * st, u2 * st + v2 * ct];
+};
+
+// cells [x, y, colour] of the galaxy at this frame, in logo-grid coordinates
 const galaxyCells = (frame: number, branchTop: number): [number, number, string][] => {
-  if (frame < SPIN_START) return [];
+  if (frame < STAGE_AT[0]) return [];
   let si = 0;
   STAGE_AT.forEach((at, i) => {
     if (frame >= at) si = i;
   });
   const s = STAGES[si];
-  const k = Math.min(1, (frame - SPIN_START) / (SPIN_END - SPIN_START));
-  const angle = -2 * Math.PI * (1 - Easing.out(Easing.cubic)(k)); // 1 turn -> 0
+  const k = interpolate(frame, [SPIN_START, SPIN_END], [0, 1], clamp);
+  const angle =
+    si < NO_SPIN_STAGES ? 0 : -2 * Math.PI * SPIN_TURNS * (1 - Easing.out(Easing.cubic)(k));
   const out: [number, number, string][] = [];
-  const pcx = s.ox + s.w / 2;
-  const pcy = s.oy + s.h / 2;
-  const cos = Math.cos(-angle);
-  const sin = Math.sin(-angle);
-  const R = Math.ceil(Math.hypot(s.w, s.h) / 2) + 1;
+  const [ccx, ccy] = GALAXY_CENTROIDS[si];
+  const pcx = s.ox + ccx; // pivot = centroid of the stage
+  const pcy = s.oy + ccy;
+  const R = Math.ceil(Math.hypot(s.w, s.h)) + 1;
   for (let gy = Math.floor(pcy - R); gy <= pcy + R; gy++)
     for (let gx = Math.floor(pcx - R); gx <= pcx + R; gx++) {
-      // centre of the destination cell, rotated back into the stage
-      const dx = gx + 0.5 - pcx;
-      const dy = gy + 0.5 - pcy;
-      const sx = Math.floor(dx * cos - dy * sin + s.w / 2);
-      const sy = Math.floor(dx * sin + dy * cos + s.h / 2);
+      let sx = gx - s.ox;
+      let sy = gy - s.oy;
+      if (angle !== 0) {
+        const [rx, ry] = spinSample(gx + 0.5 - pcx, gy + 0.5 - pcy, angle);
+        sx = Math.floor(rx + ccx);
+        sy = Math.floor(ry + ccy);
+      }
       if (sx < 0 || sy < 0 || sx >= s.w || sy >= s.h) continue;
       const ch = s.rows[sy][sx];
       if (ch !== ".") out.push([gx, gy, GALAXY_PALETTE[ch.charCodeAt(0) - 97]]);
     }
   if (!out.length) return out;
-  // anchor: bottom edge of the squares actually drawn (after the spin) = branch
-  // tip - GALAXY_GAP, i.e. centreY = branchTop - 2 - currentHeight / 2
+  // anchor: bottom edge of the squares actually drawn = branch tip - GALAXY_GAP
+  // (centreY = branchTop - 2 - currentHeight / 2)
   const bottom = Math.max(...out.map((c) => c[1])) + 1;
   const lift = branchTop - GALAXY_GAP - bottom; // integer grid rows (negative = up)
-  const slide = interpolate(frame, [SLIDE_START, SPIN_END], [0, 1], {
-    ...clamp,
-    easing: Easing.inOut(Easing.quad),
-  });
-  const dy = Math.round(lift * (1 - slide)); // whole rows only; 0 on the last frame
+  const slide = interpolate(frame, SLIDE, [0, 1], { ...clamp, easing: Easing.inOut(Easing.quad) });
+  const dy = Math.round(lift * (1 - slide)); // whole rows only; 0 from frame 32 on
   return out.map(([x, y, c]) => [x, y + dy, c]);
 };
 
