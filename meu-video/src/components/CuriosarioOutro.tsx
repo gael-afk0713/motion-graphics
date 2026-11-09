@@ -40,13 +40,16 @@ export const OUTRO_AUDIO_SEC = 4.179592;
 export const OUTRO_DURATION = Math.ceil((OUTRO_AUDIO_SEC + 0.3) * OUTRO_FPS); // 135
 
 const f = (sec: number) => Math.round(sec * OUTRO_FPS);
-const ROOTS = [0, 12]; // 0-0.4 s: roots from the trunk base out to the tips
-const TRUNK = [0, 12]; // 0-0.4 s: trunk and branches, bottom to top
-// galaxy: one pixel-art stage after another (every 2-3 frames), full at 0.73 s
-const STAGE_AT = [0, 2, 4, 7, 9, 12, 14, 17, 19, 22];
-const SPIN_END = STAGE_AT[STAGE_AT.length - 1]; // ~1 turn, easeOutCubic, ends at 0°
-const LAST = 24; // 0.8 s: planet, then loose dots and cream sparkles (24-26)
-const COMPLETE = 27; // 0.9 s: tree complete -> root tips flash white for 2 frames
+// Tree: every pixel switches on when the growth front, travelling ALONG the tree
+// (BFS from the trunk base), reaches it. Trunk + branches + roots done at 0.5 s.
+const GROW_END = 15;
+// galaxy: born on the branches (0.3 s), one approved stage every 2 frames,
+// ~1 turn (easeOutCubic) ending at exactly 0° on the full PNG galaxy at 0.9 s
+const STAGE_AT = [9, 11, 13, 15, 17, 19, 21, 23, 25, 27];
+const SPIN_START = STAGE_AT[0];
+const SPIN_END = STAGE_AT[STAGE_AT.length - 1];
+const LAST = 28; // planet, then loose dots and cream sparkles (28-30)
+const COMPLETE = 30; // 1.0 s: tree complete -> root tips flash white for 2 frames
 const TITLE_START = 18; // 0.6 s: CURIOSÁRIO, letter by letter
 const TITLE_STEP = 2;
 const TAG_IN = 38; // CTA appears (white) once the name is complete
@@ -54,17 +57,16 @@ const TAG_IN = 38; // CTA appears (white) once the name is complete
 // Spoken word starts (seconds in outro.mp3), from ffmpeg silencedetect
 // (-30 dB, d=0.04): speech stretches 2.252-2.655 | 2.746-3.205 | 3.267-4.007
 const TAG_AT: Record<string, number> = { CURTA: 2.252, SIGA: 2.746, COMPARTILHE: 3.267 };
-// CTA at +40% (84 px) does not fit one line in Silkscreen Bold (max ~60 px in
-// 1080 px), so it is set on two lines.
-const TAG_LINES = [["CURTA", "SIGA"], ["COMPARTILHE"]];
+// one line, ~88% of the frame width (950 px)
+const TAG_WORDS = ["CURTA", "SIGA", "COMPARTILHE"];
 
 // ---------------------------------------------------------------------------
-// Layout (1080x1920): logo + name + CTA centred vertically (438 ... 1483)
+// Layout (1080x1920): logo + name + CTA centred vertically (493 ... 1427)
 // ---------------------------------------------------------------------------
 const W_ = 1080;
 const H_ = 1920;
 const CELL = 12; // px per logo pixel, fixed: 51 x 12 = 612 px wide (~57%)
-const LOGO_TOP = 438; // logo 438-1122
+const LOGO_TOP = 493; // logo 493-1177
 
 // Silkscreen Bold, measured in the render: 1 font pixel = 0.1229 em, glyph left bearing = 0.1376 em
 const FONT_PX = 0.1229;
@@ -73,10 +75,9 @@ const CAP_RATIO = 0.423; // cap top inside a 1.3 line box (measured)
 const TITLE_SIZE = 109;
 const PX = TITLE_SIZE * FONT_PX; // 13.4 px
 const CAP_TOP = CAP_RATIO * TITLE_SIZE;
-const TITLE_CAP_Y = 1222; // accent top 1182, caps 1222-1289
-const TAG_SIZE = 84; // +40%
-const TAG_CAP_Y = 1339; // line 1 caps 1339-1391, line 2 caps 1431-1483
-const TAG_LINE_GAP = 92;
+const TITLE_CAP_Y = 1277; // accent top 1237, caps 1277-1344
+const TAG_SIZE = 51; // sized so the line is ~950 px wide (~88%)
+const TAG_CAP_Y = 1394; // caps 1394-1425
 
 const KEY = "#FFD23F";
 const BG = "#060C28";
@@ -143,23 +144,38 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
     else kind.set(k, "galaxy"); // drawn from GALAXY_STAGES (last stage = these pixels)
   }
   const of = (t: Kind) => [...kind.keys()].filter((k) => kind.get(k) === t);
-  const touches = (k: string, t: Kind) => {
-    const [x, y] = xy(k);
-    return N8.some(([dx, dy]) => kind.get(`${x + dx},${y + dy}`) === t);
-  };
 
   const on = new Map<string, number>();
-  const grow = (keys: string[], seeds: string[], [a, b]: number[]) => {
-    const d = bfs(new Set(keys), seeds);
-    const max = Math.max(...d.values(), 1);
-    keys.forEach((k) => on.set(k, Math.floor(a + ((d.get(k) ?? max) / max) * (b - a - 0.5))));
-    return d;
-  };
   const roots = of("root");
   const trunk = of("trunk");
-  // roots grow from the pixels touching the trunk; trunk from the pixels touching the roots
-  const rootD = grow(roots, roots.filter((k) => touches(k, "trunk")), ROOTS);
-  grow(trunk, trunk.filter((k) => touches(k, "root")), TRUNK);
+  // single seed: the trunk pixel at the base, centre of the tree
+  const base = { x: 39.5, y: 58.5 };
+  const seed = trunk.reduce((a, b) =>
+    Math.hypot(xy(a)[0] + 0.5 - base.x, xy(a)[1] + 0.5 - base.y) <=
+    Math.hypot(xy(b)[0] + 0.5 - base.x, xy(b)[1] + 0.5 - base.y)
+      ? a
+      : b,
+  );
+  // one BFS over trunk + branches + roots: the trunk goes up and splits into the
+  // branches, the roots spread down from the same base
+  const treeD = bfs(new Set([...trunk, ...roots]), [seed]);
+  // organic: each branch direction grows at its own speed (±15%, smooth in angle)
+  const ph = [0, 1, 2].map((i) => random(`ph${i}`) * Math.PI * 2);
+  const speed = (k: string) => {
+    const a = Math.atan2(xy(k)[1] + 0.5 - base.y, xy(k)[0] + 0.5 - base.x);
+    return 1 + 0.15 * (0.5 * Math.sin(3 * a + ph[0]) + 0.3 * Math.sin(5 * a + ph[1]) + 0.2 * Math.sin(8 * a + ph[2]));
+  };
+  for (const part of [trunk, roots]) {
+    const eff = new Map(part.map((k) => [k, (treeD.get(k) ?? Infinity) / speed(k)]));
+    const finite = [...eff.values()].filter(Number.isFinite);
+    const max = Math.max(...finite, 1);
+    for (const [k, e] of eff) {
+      const p = Number.isFinite(e) ? e / max : 1;
+      // easeOutQuad front: arrival time t = 1 - sqrt(1 - p) -> the tips arrive last, slower
+      on.set(k, Math.min(GROW_END - 1, Math.floor((1 - Math.sqrt(1 - p)) * GROW_END)));
+    }
+  }
+  const rootD = new Map(roots.flatMap((k) => (treeD.has(k) ? [[k, treeD.get(k)!] as const] : [])));
   of("planet").forEach((k) => on.set(k, LAST));
   // loose dots and sparkles: one after the other, last
   const late = [...of("dust"), ...of("sparkle")].sort((a, b) => random(`o${a}`) - random(`o${b}`));
@@ -234,23 +250,27 @@ const useLogo = () => {
 // ---------------------------------------------------------------------------
 // Galaxy: stage + rotation on the grid (inverse mapping, nearest neighbour)
 // ---------------------------------------------------------------------------
-const STAGES = GALAXY_STAGES.map((rows) => {
+// the first stages sit on the branch tips (bottom of the canopy) and the galaxy
+// rises to its own centre as it grows; the last stage is exactly the PNG galaxy
+const BRANCH_TOP_Y = 39;
+const STAGES = GALAXY_STAGES.map((rows, i, all) => {
   const w = rows[0].length;
   const h = rows.length;
-  // centred on the galaxy box centre (= top of the trunk), snapped to the grid
   const cx = GALAXY_BOX.x0 + GALAXY_BOX.w / 2;
-  const cy = GALAXY_BOX.y0 + GALAXY_BOX.h / 2;
+  const k = i / (all.length - 1);
+  const cy = BRANCH_TOP_Y + (GALAXY_BOX.y0 + GALAXY_BOX.h / 2 - BRANCH_TOP_Y) * k;
   return { rows, w, h, ox: Math.round(cx - w / 2), oy: Math.round(cy - h / 2) };
 });
 
 // cells [x, y, colour] of the galaxy at this frame, in logo-grid coordinates
 const galaxyCells = (frame: number): [number, number, string][] => {
+  if (frame < SPIN_START) return [];
   let si = 0;
   STAGE_AT.forEach((at, i) => {
     if (frame >= at) si = i;
   });
   const s = STAGES[si];
-  const k = Math.min(1, frame / SPIN_END);
+  const k = Math.min(1, (frame - SPIN_START) / (SPIN_END - SPIN_START));
   const angle = -2 * Math.PI * (1 - Easing.out(Easing.cubic)(k)); // 1 turn -> 0
   const out: [number, number, string][] = [];
   const pcx = s.ox + s.w / 2;
@@ -456,64 +476,61 @@ const Tagline: React.FC = () => {
   const frame = useCurrentFrame();
   const appear = interpolate(frame, [TAG_IN, TAG_IN + 6], [0, 1], clamp);
   const u = TAG_SIZE * FONT_PX; // font pixel
-  const letter = TAG_SIZE * 0.72; // one letter advance: the space kept around each "•"
+  const gap = TAG_SIZE * 0.5; // clear space on each side of the "•"
   const dot = (
     <div
       style={{
         width: Math.round(u * 1.5),
         height: Math.round(u * 1.5),
         backgroundColor: "#FFFFFF",
-        margin: `0 ${letter}px`,
+        margin: `0 ${gap}px`,
         boxShadow: `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
       }}
     />
   );
   return (
-    <AbsoluteFill style={{ opacity: appear, translate: `0 ${(1 - appear) * 16}px` }}>
-      {TAG_LINES.map((words, li) => (
-        <div
-          key={li}
-          style={{
-            position: "absolute",
-            top: TAG_CAP_Y + li * TAG_LINE_GAP - CAP_RATIO * TAG_SIZE,
-            left: 0,
-            right: 0,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            fontFamily: PIXEL_FONT,
-            fontWeight: 700,
-            fontSize: TAG_SIZE,
-            lineHeight: 1.3,
-          }}
-        >
-          {words.map((w, i) => {
-            const at = f(TAG_AT[w]);
-            const on = frame >= at;
-            const k = (frame - at) / 6;
-            const hop = k >= 0 && k <= 1 ? Math.sin(Math.PI * k) : 0;
-            return (
-              <React.Fragment key={w}>
-                {i > 0 ? dot : null}
-                <span
-                  style={{
-                    display: "inline-block",
-                    color: on ? KEY : "#FFFFFF",
-                    scale: 1 + 0.12 * hop,
-                    // hard pixel shadow + a very subtle, tight glow (letters stay crisp)
-                    textShadow: on
-                      ? `0 ${u * 0.6}px 0 #5A3A00, 0 0 ${4 + 3 * hop}px rgba(255,210,63,0.3)`
-                      : `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
-                  }}
-                >
-                  {w}
-                </span>
-              </React.Fragment>
-            );
-          })}
-        </div>
-      ))}
-    </AbsoluteFill>
+    <div
+      style={{
+        position: "absolute",
+        top: TAG_CAP_Y - CAP_RATIO * TAG_SIZE,
+        left: 0,
+        right: 0,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        fontFamily: PIXEL_FONT,
+        fontWeight: 700,
+        fontSize: TAG_SIZE,
+        lineHeight: 1.3,
+        opacity: appear,
+        translate: `0 ${(1 - appear) * 16}px`,
+      }}
+    >
+      {TAG_WORDS.map((w, i) => {
+        const at = f(TAG_AT[w]);
+        const on = frame >= at;
+        const k = (frame - at) / 6;
+        const hop = k >= 0 && k <= 1 ? Math.sin(Math.PI * k) : 0;
+        return (
+          <React.Fragment key={w}>
+            {i > 0 ? dot : null}
+            <span
+              style={{
+                display: "inline-block",
+                color: on ? KEY : "#FFFFFF",
+                scale: 1 + 0.12 * hop,
+                // hard pixel shadow + a very subtle, tight glow (letters stay crisp)
+                textShadow: on
+                  ? `0 ${u * 0.6}px 0 #5A3A00, 0 0 ${4 + 3 * hop}px rgba(255,210,63,0.3)`
+                  : `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
+              }}
+            >
+              {w}
+            </span>
+          </React.Fragment>
+        );
+      })}
+    </div>
   );
 };
 
