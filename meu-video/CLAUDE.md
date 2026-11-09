@@ -1,0 +1,30 @@
+# Curiosário — regras do projeto
+
+## Ending padrão (a partir do vídeo "Bendegó")
+- Todo vídeo novo termina com a ending padrão `CuriosarioOutro`
+  (`src/components/CuriosarioOutro.tsx`, 135 frames = 4,5 s a 30 fps, com voz
+  `public/brand/outro.mp3` e blips 8-bit).
+- Use o wrapper `src/components/WithOutro.tsx`:
+  ```tsx
+  // Root.tsx
+  durationInFrames={withOutroDuration(DURATION)}
+  // componente do vídeo
+  <WithOutro contentFrames={DURATION}>...cenas do vídeo...</WithOutro>
+  ```
+- A ending já fala "Se você gosta de curiosidades como essa, curta, siga e
+  compartilhe!", então o vídeo não precisa de cena própria de CTA.
+- Não altere a ending sem aprovação (desenho e timing aprovados). Para ver
+  sozinha: composição "Outro".
+- Vídeos já publicados (Venus, Lesma, Ovelha, Foguete) NÃO recebem a ending;
+  não mexa no vídeo do Foguete.
+
+## Regra dos pixels da logo
+Cada pixel da logo é um quadrado de tamanho inteiro e fixo (12 px), em posição
+inteira, desenhado em canvas sem suavização; sem rotate/scale/blur/glow/
+transparência na logo e cores só da paleta do PNG. A galáxia cresce pelas
+etapas de `scripts/galaxy_stages.py` (gera `src/components/galaxyStages.ts`).
+
+## Render
+`npx remotion render <Id> out/<nome>.mp4 --gl=swangle` em primeiro plano
+(no ambiente de nuvem, acrescente `--ignore-certificate-errors` para a fonte
+Silkscreen do Google Fonts carregar).
