@@ -48,6 +48,10 @@ const GROW_END = 15;
 const STAGE_AT = [9, 11, 13, 15, 17, 19, 21, 23, 25, 27];
 const SPIN_START = STAGE_AT[0];
 const SPIN_END = STAGE_AT[STAGE_AT.length - 1];
+// while growing, the galaxy's bottom edge sits 2 pixels above the highest branch
+// tip; over the last ~0.15 s it slides down (whole grid steps) to the PNG position
+const GALAXY_GAP = 2;
+const SLIDE_START = SPIN_END - 4;
 const LAST = 28; // planet, then loose dots and cream sparkles (28-30)
 const COMPLETE = 30; // 1.0 s: tree complete -> root tips flash white for 2 frames
 const TITLE_START = 18; // 0.6 s: CURIOSÁRIO, letter by letter
@@ -90,7 +94,15 @@ const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 // ---------------------------------------------------------------------------
 type Kind = "root" | "trunk" | "planet" | "sparkle" | "dust" | "galaxy";
 type Px = { x: number; y: number; color: string; kind: Kind; on: number };
-type Logo = { px: Px[]; sparkles: number[]; tips: [number, number][]; x0: number; y0: number; w: number };
+type Logo = {
+  px: Px[];
+  sparkles: number[];
+  tips: [number, number][];
+  branchTop: number; // y (grid) of the highest branch tip
+  x0: number;
+  y0: number;
+  w: number;
+};
 
 const CORE = { x: 38.5, y: 28 }; // centre of the yellow galaxy core
 const CREAM = "249,230,164";
@@ -212,6 +224,7 @@ const buildLogo = (data: Uint8ClampedArray, size: number): Logo => {
     x0: Math.min(...xs),
     y0: Math.min(...px.map((p) => p.y)),
     w: Math.max(...xs) + 1 - Math.min(...xs),
+    branchTop: Math.min(...trunk.map((k) => xy(k)[1])),
   };
 };
 
@@ -250,20 +263,18 @@ const useLogo = () => {
 // ---------------------------------------------------------------------------
 // Galaxy: stage + rotation on the grid (inverse mapping, nearest neighbour)
 // ---------------------------------------------------------------------------
-// the first stages sit on the branch tips (bottom of the canopy) and the galaxy
-// rises to its own centre as it grows; the last stage is exactly the PNG galaxy
-const BRANCH_TOP_Y = 39;
-const STAGES = GALAXY_STAGES.map((rows, i, all) => {
+// every stage is placed (before rotation) centred on the PNG galaxy box; the
+// last stage at 0° is therefore exactly the PNG galaxy
+const STAGES = GALAXY_STAGES.map((rows) => {
   const w = rows[0].length;
   const h = rows.length;
   const cx = GALAXY_BOX.x0 + GALAXY_BOX.w / 2;
-  const k = i / (all.length - 1);
-  const cy = BRANCH_TOP_Y + (GALAXY_BOX.y0 + GALAXY_BOX.h / 2 - BRANCH_TOP_Y) * k;
+  const cy = GALAXY_BOX.y0 + GALAXY_BOX.h / 2;
   return { rows, w, h, ox: Math.round(cx - w / 2), oy: Math.round(cy - h / 2) };
 });
 
 // cells [x, y, colour] of the galaxy at this frame, in logo-grid coordinates
-const galaxyCells = (frame: number): [number, number, string][] => {
+const galaxyCells = (frame: number, branchTop: number): [number, number, string][] => {
   if (frame < SPIN_START) return [];
   let si = 0;
   STAGE_AT.forEach((at, i) => {
@@ -289,7 +300,17 @@ const galaxyCells = (frame: number): [number, number, string][] => {
       const ch = s.rows[sy][sx];
       if (ch !== ".") out.push([gx, gy, GALAXY_PALETTE[ch.charCodeAt(0) - 97]]);
     }
-  return out;
+  if (!out.length) return out;
+  // anchor: bottom edge of the squares actually drawn (after the spin) = branch
+  // tip - GALAXY_GAP, i.e. centreY = branchTop - 2 - currentHeight / 2
+  const bottom = Math.max(...out.map((c) => c[1])) + 1;
+  const lift = branchTop - GALAXY_GAP - bottom; // integer grid rows (negative = up)
+  const slide = interpolate(frame, [SLIDE_START, SPIN_END], [0, 1], {
+    ...clamp,
+    easing: Easing.inOut(Easing.quad),
+  });
+  const dy = Math.round(lift * (1 - slide)); // whole rows only; 0 on the last frame
+  return out.map(([x, y, c]) => [x, y + dy, c]);
 };
 
 // ---------------------------------------------------------------------------
@@ -386,7 +407,7 @@ const PixelLogo: React.FC<{ logo: Logo }> = ({ logo }) => {
     logo.px.forEach((p) => {
       if ((p.kind === "root" || p.kind === "trunk") && frame >= p.on) cell(p.x, p.y, p.color);
     });
-    for (const [x, y, c] of galaxyCells(frame)) cell(x, y, c);
+    for (const [x, y, c] of galaxyCells(frame, logo.branchTop)) cell(x, y, c);
     logo.px.forEach((p, i) => {
       if ((p.kind === "planet" || p.kind === "dust" || p.kind === "sparkle") && frame >= p.on && i !== off)
         cell(p.x, p.y, p.color);
