@@ -1,6 +1,8 @@
 // Curiosário — standard channel ending (reusable).
 // The logo is rebuilt from public/brand/logo-pixel-80-transparente.png:
 // one square per non-transparent pixel of the 80x80 image.
+// Pixel art rules: squares are never rotated, and once in place every square
+// is snapped to whole screen pixels so neighbours tile with no gaps.
 import { Audio } from "@remotion/media";
 import { loadFont } from "@remotion/google-fonts/Silkscreen";
 import React, { useEffect, useState } from "react";
@@ -18,11 +20,10 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import { FONT } from "../venus/Overlays";
 
 const { fontFamily: PIXEL_FONT } = loadFont("normal", {
   weights: ["700"],
-  subsets: ["latin"], // latin includes Á (U+00C1)
+  subsets: ["latin"],
 });
 
 // ---------------------------------------------------------------------------
@@ -39,50 +40,11 @@ const PULSE = ASSEMBLED; // 1 -> 1.05 -> 1
 const SHRINK = 36; // 1.2 s: logo shrinks and moves up (+ "pop")
 const TITLE_START = 40; // CURIOSÁRIO, letter by letter
 const TITLE_STEP = 2;
-const TAG_IN = 58; // CURTA • SIGA • COMPARTILHE appears dimmed
+const TAG_IN = 58; // CURTA • SIGA • COMPARTILHE appears (white)
+const END_PULSE = 10; // light pulse of the whole composition over the last frames
 
-// Word timings (seconds in outro.mp3), from ffmpeg silencedetect:
-//   -30 dB, d=0.04: speech 0.04-1.95 | 2.252-2.655 | 2.746-3.205 | 3.267-4.007
-//   -25 dB, d=0.02 (first phrase): dips at 0.64, 0.81, 1.15, 1.39-1.46
-// "curta" 2.252, "siga" 2.746, "compartilhe" 3.267 start exactly on their speech stretch.
-type W = { t: string; at: number; key?: boolean };
-const CAPTION_BLOCKS: { lines: W[][]; until: number }[] = [
-  {
-    lines: [
-      [
-        { t: "Se", at: 0.05 },
-        { t: "você", at: 0.17 },
-        { t: "gosta", at: 0.4 },
-      ],
-      [
-        { t: "de", at: 0.67 },
-        { t: "curiosidades", at: 0.78 },
-      ],
-    ],
-    until: 1.45,
-  },
-  {
-    lines: [
-      [
-        { t: "como", at: 1.45 },
-        { t: "essa,", at: 1.7 },
-      ],
-    ],
-    until: 2.252,
-  },
-  {
-    lines: [
-      [
-        { t: "curta,", at: 2.252, key: true },
-        { t: "siga", at: 2.746, key: true },
-        { t: "e", at: 3.08 },
-      ],
-      [{ t: "compartilhe!", at: 3.267, key: true }],
-    ],
-    until: Infinity,
-  },
-];
-const SPEECH_END = 4.007;
+// Spoken word starts (seconds in outro.mp3), from ffmpeg silencedetect
+// (-30 dB, d=0.04): speech stretches 2.252-2.655 | 2.746-3.205 | 3.267-4.007
 const TAG_WORDS: { t: string; at: number }[] = [
   { t: "CURTA", at: 2.252 },
   { t: "SIGA", at: 2.746 },
@@ -90,27 +52,37 @@ const TAG_WORDS: { t: string; at: number }[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Layout (1080x1920)
+// Layout (1080x1920). The final group logo + name + CTA is centred vertically:
+// logo 498-1162, accent top 1232, name caps 1271-1336, CTA caps 1386-1423.
 // ---------------------------------------------------------------------------
 const W_ = 1080;
-const BIG = { width: 0.7 * W_, cy: 690 }; // art width 756 px
-const SMALL = { width: 0.4 * W_, cy: 500 }; // art width 432 px, top third
-const TITLE_Y = 790;
-const TAG_Y = 935;
-// captions: lower third, kept clear of the logo and of the TikTok UI
-// (right-hand buttons and bottom description) — same block as Foguete scene 7
-const CAP = { top: 1250, left: 60, right: 220, size: 92 };
+const H_ = 1920;
+const BIG = { width: 0.7 * W_, cy: H_ / 2 }; // art 756 px wide while assembling
+const SMALL = { width: 0.55 * W_, cy: 830 }; // art 594 px wide, final
+const START_RING = 350; // px: at most this far from the centre at the start
+
+// Silkscreen Bold, measured in the render: 1 font pixel = 0.1229 em, glyph left bearing = 0.1376 em
+const FONT_PX = 0.1229;
+const BEARING = 0.1376;
+const TITLE_SIZE = 109;
+const PX = TITLE_SIZE * FONT_PX; // 13.4 px
+const CAP_TOP = 0.423 * TITLE_SIZE; // cap top inside a 1.3 line box (measured)
+const TITLE_CAP_Y = 1271;
+// 48 * 1.25: at +30% (62 px) Silkscreen Bold is wider than the 1080 frame
+const TAG_SIZE = 60;
+const TAG_CAP_Y = 1386;
 
 const KEY = "#FFD23F";
 const BG = "#060C28";
 const ROOT_GLOW = "#49EDB4";
+const SHADOW = "#2D0947";
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
 // ---------------------------------------------------------------------------
 // Logo pixels (read from the 80x80 PNG at render time)
 // ---------------------------------------------------------------------------
 type Kind = "root" | "trunk" | "galaxy";
-type Px = { x: number; y: number; color: string; kind: Kind };
+type Px = { x: number; y: number; rgb: [number, number, number]; kind: Kind };
 type Logo = { px: Px[]; x0: number; x1: number; y0: number; y1: number };
 
 const kindOf = (r: number, g: number, b: number): Kind => {
@@ -141,7 +113,7 @@ const readLogo = () => {
           const i = (y * c.width + x) * 4;
           if (d[i + 3] < 128) continue;
           const [r, g, b] = [d[i], d[i + 1], d[i + 2]];
-          px.push({ x, y, color: `rgb(${r},${g},${b})`, kind: kindOf(r, g, b) });
+          px.push({ x, y, rgb: [r, g, b], kind: kindOf(r, g, b) });
         }
       resolve({
         px,
@@ -187,7 +159,7 @@ const Stars: React.FC = () => {
   const frame = useCurrentFrame();
   const t = frame / OUTRO_FPS;
   return (
-    <AbsoluteFill style={{ backgroundColor: BG }}>
+    <AbsoluteFill>
       {STARS.map((s, i) => {
         const tw = 0.5 + 0.5 * Math.sin((2 * Math.PI * t) / s.period + s.phase);
         return (
@@ -212,14 +184,23 @@ const Stars: React.FC = () => {
 // ---------------------------------------------------------------------------
 // Pixel logo
 // ---------------------------------------------------------------------------
-const PixelLogo: React.FC<{ logo: Logo }> = ({ logo }) => {
+const CORE = { x: 38.5, y: 27.5 }; // galaxy core, in image pixels
+const SPARKLE = [249, 230, 164]; // cream sparkles (outside the core they twinkle)
+
+const tint = ([r, g, b]: [number, number, number], a: number) => {
+  // a > 0 lightens towards white, a < 0 darkens
+  const m = (c: number) => Math.round(a >= 0 ? c + (255 - c) * a : c * (1 + a));
+  return `rgb(${m(r)},${m(g)},${m(b)})`;
+};
+
+const PixelLogo: React.FC<{ logo: Logo; zoom: number }> = ({ logo, zoom }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  const t = (frame - ASSEMBLED) / fps;
   const artW = logo.x1 - logo.x0;
-  const artCx = (logo.x0 + logo.x1) / 2;
-  const artCy = (logo.y0 + logo.y1) / 2;
+  const artH = logo.y1 - logo.y0;
 
-  // big -> small (smooth spring) and up to the top third
+  // big -> 55% width, moving up to its place in the centred group
   const shrink = spring({
     frame: frame - SHRINK,
     fps,
@@ -229,65 +210,77 @@ const PixelLogo: React.FC<{ logo: Logo }> = ({ logo }) => {
   const pulseK = (frame - PULSE) / 8;
   const pulse = pulseK > 0 && pulseK < 1 ? 0.05 * Math.sin(Math.PI * pulseK) : 0;
   const width = interpolate(shrink, [0, 1], [BIG.width, SMALL.width]);
-  const cell = (width / artW) * (1 + pulse);
+  const cell = (width / artW) * (1 + pulse) * zoom;
   const cx = W_ / 2;
-  const cy = interpolate(shrink, [0, 1], [BIG.cy, SMALL.cy]);
-
-  // galaxy turning: differential swirl around the core (outer edge stays put,
-  // so the branches still meet the canopy)
-  const core = { x: 38.5, y: 27.5 };
-  const swirlR = 27;
-  const swirl =
-    interpolate(frame, [ASSEMBLED, OUTRO_DURATION], [0, 28], {
-      ...clamp,
-      easing: Easing.inOut(Easing.sin),
-    }) *
-    (Math.PI / 180);
+  const cy = H_ / 2 + (interpolate(shrink, [0, 1], [BIG.cy, SMALL.cy]) - H_ / 2) * zoom;
+  const ox = cx - (artW * cell) / 2;
+  const oy = cy - (artH * cell) / 2;
+  const rMax = Math.hypot(artW, artH) * 0.5 * cell;
 
   // aqua roots glow once the logo is assembled
   const glowIn = interpolate(frame, [ASSEMBLED - 2, ASSEMBLED + 4], [0, 1], clamp);
   const glowBeat = 0.65 + 0.35 * Math.sin((frame - ASSEMBLED) / 6);
   const glow = glowIn * (ASSEMBLED + 4 > frame ? 1 : glowBeat) * cell;
+  const shimmerIn = interpolate(frame, [ASSEMBLED, ASSEMBLED + 8], [0, 1], clamp);
 
   const groups: Record<Kind, React.ReactNode[]> = { root: [], trunk: [], galaxy: [] };
   logo.px.forEach((p, i) => {
-    // fly-in: staggered from bottom (roots) to top (galaxy)
-    const rowK = (logo.y1 - 1 - p.y) / (logo.y1 - 1 - logo.y0); // 0 bottom .. 1 top
-    const delay = rowK * 8 + random(`d${i}`) * 2;
-    const k = interpolate(frame + 3 - delay, [0, 11], [0, 1], clamp);
-    const e = Easing.out(Easing.cubic)(k);
-    const ang = random(`a${i}`) * Math.PI * 2;
-    const rad = 22 + random(`r${i}`) * 38; // in cells
-    const offX = Math.cos(ang) * rad * (1 - e);
-    const offY = Math.sin(ang) * rad * (1 - e);
-    const spin = (random(`s${i}`) - 0.5) * 360 * (1 - e);
+    // target square, snapped to whole screen pixels (edges shared with neighbours)
+    const L = Math.round(ox + (p.x - logo.x0) * cell);
+    const R = Math.round(ox + (p.x - logo.x0 + 1) * cell);
+    const T = Math.round(oy + (p.y - logo.y0) * cell);
+    const B = Math.round(oy + (p.y - logo.y0 + 1) * cell);
+    let left = L;
+    let top = T;
 
-    let gx = p.x + 0.5;
-    let gy = p.y + 0.5;
-    let rot = spin;
-    if (p.kind === "galaxy") {
-      const dx = gx - core.x;
-      const dy = gy - core.y;
-      const r = Math.hypot(dx, dy);
-      const a = -swirl * Math.max(0, 1 - r / swirlR) ** 1.5;
-      gx = core.x + dx * Math.cos(a) - dy * Math.sin(a);
-      gy = core.y + dx * Math.sin(a) + dy * Math.cos(a);
-      rot += (a * 180) / Math.PI;
+    // spiral fly-in, staggered from bottom (roots) to top (galaxy):
+    // start = the tree squeezed into a 350 px disc and twisted (silhouette readable)
+    const rowK = (logo.y1 - 1 - p.y) / (artH - 1); // 0 bottom .. 1 top
+    const delay = rowK * 8 + random(`d${i}`) * 2;
+    const k = interpolate(frame + 4 - delay, [0, 12], [0, 1], clamp);
+    const e = Easing.out(Easing.cubic)(k);
+    if (e < 1) {
+      const dx = (L + R) / 2 - cx;
+      const dy = (T + B) / 2 - cy;
+      const rt = Math.hypot(dx, dy);
+      const th = Math.atan2(dy, dx);
+      const rs = START_RING * Math.tanh(rt / START_RING);
+      const twist = 0.8 * (0.3 + 0.7 * (rt / rMax));
+      const r = rs + (rt - rs) * e;
+      const a = th + twist * (1 - e);
+      left = Math.round(cx + r * Math.cos(a) - (R - L) / 2);
+      top = Math.round(cy + r * Math.sin(a) - (B - T) / 2);
     }
-    const x = cx + (gx - artCx + offX) * cell;
-    const y = cy + (gy - artCy + offY) * cell;
-    const size = cell * (0.7 + 0.3 * e) + 0.6; // +0.6 px: no seams between squares
+
+    let color = `rgb(${p.rgb.join(",")})`;
+    let opacity = 1;
+    if (p.kind === "galaxy" && shimmerIn > 0) {
+      const dist = Math.hypot(p.x + 0.5 - CORE.x, p.y + 0.5 - CORE.y);
+      const isSparkle =
+        p.rgb[0] === SPARKLE[0] && p.rgb[1] === SPARKLE[1] && p.rgb[2] === SPARKLE[2];
+      if (isSparkle && dist > 8) {
+        // sparkles around the galaxy blink on/off
+        const per = 0.7 + random(`tp${i}`) * 0.9;
+        const on = Math.sin((2 * Math.PI * t) / per + random(`tf${i}`) * 6.28) > -0.35;
+        opacity = on ? 1 : 1 - 0.8 * shimmerIn;
+      } else {
+        // brightness wave travelling from the core outwards (stepped, pixel-like)
+        const w = Math.sin(2 * Math.PI * 1.1 * t - dist / 3.2);
+        const a = Math.round(w * 4) / 4; // 9 brightness steps
+        color = tint(p.rgb, (a > 0 ? 0.32 * a : 0.06 * a) * shimmerIn);
+      }
+    }
     groups[p.kind].push(
       <div
         key={i}
         style={{
           position: "absolute",
-          left: x - size / 2,
-          top: y - size / 2,
-          width: size,
-          height: size,
-          backgroundColor: p.color,
-          rotate: `${rot}deg`,
+          left,
+          top,
+          width: R - L,
+          height: B - T,
+          backgroundColor: color,
+          opacity,
         }}
       />,
     );
@@ -314,26 +307,36 @@ const PixelLogo: React.FC<{ logo: Logo }> = ({ logo }) => {
 // ---------------------------------------------------------------------------
 // CURIOSÁRIO (letter by letter) + CURTA • SIGA • COMPARTILHE (lights up with the voice)
 // ---------------------------------------------------------------------------
-const pixelShadow = "0 8px 0 #2D0947, 6px 6px 0 #2D0947, -2px 8px 0 #2D0947";
+const pixelShadow = (u: number) =>
+  `0 ${u * 0.6}px 0 ${SHADOW}, ${u * 0.45}px ${u * 0.45}px 0 ${SHADOW}`;
+
+// Pixel acute accent drawn on the font's own pixel grid, 1 pixel above the A:
+// lower square over the A's centre column, upper square one step up-right.
+const ACUTE: [number, number][] = [
+  [2, -2],
+  [3, -3],
+];
 
 const Title: React.FC = () => {
   const frame = useCurrentFrame();
-  const letters = [..."CURIOSÁRIO"];
+  // "Á" is drawn as "A" + a pixel accent (the font's own accent sits loose and tilted)
+  const letters = [..."CURIOSARIO"];
+  const accentOn = 6;
   return (
     <div
       style={{
         position: "absolute",
-        top: TITLE_Y,
+        top: TITLE_CAP_Y - CAP_TOP,
         left: 0,
         right: 0,
         display: "flex",
         justifyContent: "center",
         fontFamily: PIXEL_FONT,
         fontWeight: 700,
-        fontSize: 104,
+        fontSize: TITLE_SIZE,
         lineHeight: 1.3,
         color: "#FFFFFF",
-        textShadow: pixelShadow,
+        textShadow: pixelShadow(PX),
       }}
     >
       {letters.map((ch, i) => {
@@ -345,6 +348,7 @@ const Title: React.FC = () => {
           <span
             key={i}
             style={{
+              position: "relative",
               display: "inline-block",
               opacity: k < 0 ? 0 : 1,
               scale,
@@ -352,6 +356,22 @@ const Title: React.FC = () => {
             }}
           >
             {ch}
+            {i === accentOn
+              ? ACUTE.map(([c, r]) => (
+                  <div
+                    key={`${c}${r}`}
+                    style={{
+                      position: "absolute",
+                      left: BEARING * TITLE_SIZE + c * PX,
+                      top: Math.round(CAP_TOP) + r * PX,
+                      width: PX,
+                      height: PX,
+                      backgroundColor: "#FFFFFF",
+                      boxShadow: pixelShadow(PX),
+                    }}
+                  />
+                ))
+              : null}
           </span>
         );
       })}
@@ -362,15 +382,15 @@ const Title: React.FC = () => {
 const Tagline: React.FC = () => {
   const frame = useCurrentFrame();
   const appear = interpolate(frame, [TAG_IN, TAG_IN + 6], [0, 1], clamp);
-  const size = 48;
+  const u = TAG_SIZE * FONT_PX; // font pixel
   const dot = (
     <div
       style={{
-        width: size * 0.22,
-        height: size * 0.22,
-        backgroundColor: "rgba(255,255,255,0.55)",
-        margin: `0 ${size * 0.45}px`,
-        alignSelf: "center",
+        width: Math.round(u * 1.5),
+        height: Math.round(u * 1.5),
+        backgroundColor: "#FFFFFF",
+        margin: `0 ${u * 1.1}px`,
+        boxShadow: `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
       }}
     />
   );
@@ -378,7 +398,7 @@ const Tagline: React.FC = () => {
     <div
       style={{
         position: "absolute",
-        top: TAG_Y,
+        top: TAG_CAP_Y - 0.423 * TAG_SIZE,
         left: 0,
         right: 0,
         display: "flex",
@@ -386,7 +406,9 @@ const Tagline: React.FC = () => {
         alignItems: "center",
         fontFamily: PIXEL_FONT,
         fontWeight: 700,
-        fontSize: size,
+        fontSize: TAG_SIZE,
+        lineHeight: 1.3,
+        letterSpacing: -3.5,
         opacity: appear,
         translate: `0 ${(1 - appear) * 16}px`,
       }}
@@ -401,11 +423,12 @@ const Tagline: React.FC = () => {
             <span
               style={{
                 display: "inline-block",
-                color: on ? KEY : "rgba(255,255,255,0.45)",
-                scale: 1 + 0.18 * hop,
+                color: on ? KEY : "#FFFFFF",
+                scale: 1 + 0.15 * hop,
+                // hard pixel shadow + a small, tight glow (keeps the letters crisp)
                 textShadow: on
-                  ? `0 5px 0 #5A3A00, 0 0 ${18 + 14 * hop}px rgba(255,210,63,0.8)`
-                  : "0 5px 0 rgba(0,0,0,0.5)",
+                  ? `0 ${u * 0.6}px 0 #5A3A00, 0 0 ${6 + 4 * hop}px rgba(255,210,63,0.45)`
+                  : `0 ${u * 0.6}px 0 rgba(0,0,0,0.5)`,
               }}
             >
               {w.t}
@@ -418,129 +441,25 @@ const Tagline: React.FC = () => {
 };
 
 // ---------------------------------------------------------------------------
-// Karaoke captions — same look as the videos (Montserrat Black, white,
-// dark 8-direction outline, yellow keywords, highlight while spoken)
-// ---------------------------------------------------------------------------
-const O = 5;
-const outline =
-  [
-    [O, 0],
-    [-O, 0],
-    [0, O],
-    [0, -O],
-    [O * 0.7, O * 0.7],
-    [-O * 0.7, O * 0.7],
-    [O * 0.7, -O * 0.7],
-    [-O * 0.7, -O * 0.7],
-  ]
-    .map(([x, y]) => `${x}px ${y}px 0 #0b1c22`)
-    .join(", ") + ", 0 10px 26px rgba(0,0,0,0.55)";
-const LEAD = 2;
-
-const Captions: React.FC = () => {
-  const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  return (
-    <AbsoluteFill>
-      {CAPTION_BLOCKS.map((b, bi) => {
-        const words = b.lines.flat();
-        const start = Math.max(0, f(words[0].at) - LEAD);
-        const next = Number.isFinite(b.until) ? f(b.until) - LEAD : Infinity;
-        if (frame < start || frame >= next) return null;
-        const out = Number.isFinite(next)
-          ? interpolate(frame, [next - 3, next], [1, 0], clamp)
-          : 1;
-        const enter =
-          start === 0
-            ? 1
-            : spring({
-                frame: frame - start + 1,
-                fps,
-                config: { damping: 16, stiffness: 260, mass: 0.5 },
-              });
-        return (
-          <div
-            key={bi}
-            style={{
-              position: "absolute",
-              top: CAP.top,
-              left: CAP.left,
-              right: CAP.right,
-              opacity: out * interpolate(enter, [0, 0.4], [0, 1], clamp),
-              scale: interpolate(enter, [0, 1], [0.92, 1]),
-              fontFamily: FONT,
-              fontWeight: 900,
-              fontSize: CAP.size,
-              lineHeight: 1.12,
-              letterSpacing: -1,
-            }}
-          >
-            {b.lines.map((line, li) => (
-              <div
-                key={li}
-                style={{
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "baseline",
-                  columnGap: CAP.size * 0.38,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {line.map((w) => {
-                  const idx = words.indexOf(w);
-                  const s = f(w.at);
-                  const e =
-                    idx + 1 < words.length
-                      ? f(words[idx + 1].at)
-                      : bi + 1 < CAPTION_BLOCKS.length
-                        ? f(CAPTION_BLOCKS[bi + 1].lines[0][0].at)
-                        : f(SPEECH_END);
-                  const end = Math.max(e, s + 3);
-                  const on = interpolate(
-                    frame,
-                    [s - 2, s + 1, end - 1, end + 2],
-                    [0, 1, 1, 0],
-                    clamp,
-                  );
-                  const hk = (frame - (s - 1)) / 8;
-                  const pop = w.key && hk >= 0 && hk <= 1 ? 0.15 * Math.sin(Math.PI * hk) : 0;
-                  return (
-                    <span
-                      key={w.t}
-                      style={{
-                        display: "inline-block",
-                        color: w.key ? KEY : "#ffffff",
-                        transformOrigin: "50% 80%",
-                        scale: Math.max(1 + 0.06 * on, 1 + pop),
-                        filter: `brightness(${1 + 0.3 * on})`,
-                        textShadow: `${outline}, 0 0 ${28 * on}px ${w.key ? "rgba(255,210,63,0.85)" : "rgba(255,255,255,0.8)"}`,
-                      }}
-                    >
-                      {w.t}
-                    </span>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </AbsoluteFill>
-  );
-};
-
-// ---------------------------------------------------------------------------
 // The ending
 // ---------------------------------------------------------------------------
 export const CuriosarioOutro: React.FC<{ audio?: boolean }> = ({ audio = true }) => {
+  const frame = useCurrentFrame();
   const logo = useLogo();
+  // closing pulse: 1 -> 1.04 -> 1, finishing on the last frame
+  const ek = (frame - (OUTRO_DURATION - 1 - END_PULSE)) / END_PULSE;
+  const zoom = ek > 0 && ek <= 1 ? 1 + 0.04 * Math.sin(Math.PI * ek) : 1;
   return (
     <AbsoluteFill style={{ backgroundColor: BG }}>
-      <Stars />
-      {logo ? <PixelLogo logo={logo} /> : null}
-      <Title />
-      <Tagline />
-      <Captions />
+      <AbsoluteFill style={{ scale: zoom }}>
+        <Stars />
+      </AbsoluteFill>
+      {/* the logo applies the zoom itself, so its squares stay snapped to the pixel grid */}
+      {logo ? <PixelLogo logo={logo} zoom={zoom} /> : null}
+      <AbsoluteFill style={{ scale: zoom }}>
+        <Title />
+        <Tagline />
+      </AbsoluteFill>
       {audio ? (
         <>
           <Audio src={staticFile("brand/outro.mp3")} />
