@@ -11,6 +11,7 @@ type Tex = {
   moonNormal: THREE.Texture;
   earth: THREE.Texture;
 };
+
 let cache: Tex | null = null;
 let pending: Promise<Tex> | null = null;
 
@@ -33,8 +34,17 @@ const loadAll = () => {
     load(staticFile("foguete/tex/moon_color.jpg"), true),
     load(staticFile("foguete/tex/moon_normal.jpg"), false),
     load(staticFile("foguete/tex/earth_bluemarble_clouds.jpg"), true),
+    // the plaque texture is drawn with Montserrat: make sure the font is ready first
+    document.fonts
+      .load("800 100px Montserrat")
+      .then(() => document.fonts.load("700 100px Montserrat")),
   ]).then(
-    ([moonMap, moonNormal, earth]) => (cache = { moonMap, moonNormal, earth }),
+    ([moonMap, moonNormal, earth]) =>
+      (cache = {
+        moonMap,
+        moonNormal,
+        earth,
+      }),
   );
   return pending;
 };

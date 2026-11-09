@@ -9,10 +9,14 @@ type Block = {
   size?: number;
   side?: number;
   allAtStart?: boolean;
+  // scene 7: caption in the lower third (above the TikTok description area), kept off the right-hand buttons
+  top?: number;
+  right?: number;
 };
 type SceneDef = {
   file: string;
   dur: number;
+  tail?: number;
   segs: [number, number][][];
   blocks: Block[];
 };
@@ -27,6 +31,8 @@ export const CAPTION_SIZE = 92; // same as "Ovelha"
 // Block 1 must be complete on frame 0 and in 2 lines: "SpaceX bateu na Lua." is 1075px at 92px,
 // so this one block is set at 86px with 40px side margins (widest line ~1000px).
 const FIRST = { size: 86, side: 40 };
+// scene 7 captions: lower third, lines <= 785px, right margin clear of the TikTok buttons
+const LOWER = { top: 1250, side: 60, right: 220 };
 
 export const SCENES: SceneDef[] = [
   {
@@ -164,10 +170,30 @@ export const SCENES: SceneDef[] = [
       { text: "é *intocada!*", group: 0 },
     ],
   },
+  {
+    // scene 7: the plaque on the Moon. dur = ffprobe of foguete7.mp3 (4.179592 s), tail 0.25 s
+    file: "foguete/foguete7.mp3",
+    dur: 4.18,
+    tail: 0.25,
+    segs: [
+      [[0, 1.951]],
+      [
+        [2.252, 2.655],
+        [2.746, 3.205],
+        [3.267, 4.007],
+        [4.128, 4.18],
+      ],
+    ],
+    blocks: [
+      { text: "Se você gosta | de curiosidades", group: 0, ...LOWER },
+      { text: "como essa,", group: 0, ...LOWER },
+      { text: "*curta,* ^1*siga* e | ^2*compartilhe!*", group: 1, ...LOWER },
+    ],
+  },
 ];
 
 export const SCENE_DURATIONS = SCENES.map((s) =>
-  Math.ceil((s.dur + TAIL) * FPS),
+  Math.ceil((s.dur + (s.tail ?? TAIL)) * FPS),
 );
 export const S = SCENE_DURATIONS.map((_, i) =>
   SCENE_DURATIONS.slice(0, i).reduce((a, b) => a + b, 0),

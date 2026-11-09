@@ -32,6 +32,8 @@ export type CaptionBlock = {
   scene: number;
   size: number;
   side: number;
+  top?: number;
+  right?: number;
   words: Word[];
   start: number;
 };
@@ -102,6 +104,8 @@ export const BLOCKS: CaptionBlock[] = (() => {
         scene: si,
         size: b.size ?? CAPTION_SIZE,
         side: b.side ?? 80,
+        top: b.top,
+        right: b.right,
         words: ws,
         start,
       });

@@ -6,23 +6,25 @@ import * as THREE from "three";
 import { RocketStage } from "./Rocket";
 import {
   getFuelIcon,
-  getMoonTextures,
   getRegolithTextures,
+  getMoonTextures,
   getSoftSprite,
   groundHeight,
   makeSpaceEnv,
   rng,
 } from "./textures";
 import {
-  DURATION,
   FPS,
   IMPACT,
   IMPACT5,
   S,
+  SCENE_DURATIONS,
   sceneEnd,
   sceneOf,
 } from "./timeline";
 import { useNasaTextures } from "./nasa";
+import { BLOCKS } from "./captions";
+import { getBootTexture, Plaque, PLAQUE_H, POST_H } from "./Plaque";
 
 type Nasa = NonNullable<ReturnType<typeof useNasaTextures>>;
 
@@ -59,7 +61,7 @@ const camZ1 = (f: number) => 640 - CAM_SPEED * f;
 const ROCKET_REL = V(4.4, -13.5, -64); // rocket relative to the camera on frame 0 (lower right)
 const LOOK1 = V(0, -50, 0);
 const moonRot = (f: number) => {
-  if (sceneOf(f) === 5) return MOON_ROT0 + (f - DURATION) * 0.0035;
+  if (sceneOf(f) === 5) return MOON_ROT0 + (f - END6) * 0.0035;
   return MOON_ROT0 + f * 0.0008;
 };
 const rocket1World = (f: number) =>
@@ -108,12 +110,90 @@ const DIVE_FROM = V(-0.55, 0.62, -0.56).normalize();
 const diveDist = (f: number) => Math.max(0, (IMPACT - f) * 5.2);
 const CRATER_R = 10;
 const craterAt = (f: number) =>
-  sceneOf(f) === 3
-    ? interpolate(f, [IMPACT, IMPACT + 50], [0, 1], {
-        ...clamp,
-        easing: Easing.out(Easing.cubic),
-      })
-    : 0;
+  sceneOf(f) === 6
+    ? 1
+    : sceneOf(f) === 3
+      ? interpolate(f, [IMPACT, IMPACT + 50], [0, 1], {
+          ...clamp,
+          easing: Easing.out(Easing.cubic),
+        })
+      : 0;
+// ---------------------------------------------------------------------------
+// Scene 7: the plaque near the impact crater
+// ---------------------------------------------------------------------------
+const END6 = sceneEnd(5);
+const PL_XZ = [14, 28] as const; // flat spot; the crater lies right behind it in the shot
+const PL = V(PL_XZ[0], groundHeight(PL_XZ[0], PL_XZ[1]), PL_XZ[1]);
+const PL_N = V(0.45, 0, 0.89).normalize(); // plaque faces the camera, turned a bit to the low sun
+const PL_T = V(PL_N.z, 0, -PL_N.x); // horizontal, along the plate
+const PL_YAW = Math.atan2(PL_N.x, PL_N.z);
+const PL_CENTER = PL.clone().add(V(0, POST_H + PLAQUE_H / 2, 0));
+const plaqueShot = (f: number): Pose => {
+  const k = f - S[6];
+  // smooth descent from high above the crater, then a slow dolly-in to the plaque
+  const d = interpolate(k, [0, 45], [0, 1], {
+    ...clamp,
+    easing: Easing.inOut(Easing.cubic),
+  });
+  const dolly = interpolate(k, [40, SCENE_DURATIONS[6]], [0, 1], {
+    ...clamp,
+    easing: Easing.out(Easing.quad),
+  });
+  const high = PL.clone()
+    .addScaledVector(PL_N, 12)
+    .addScaledVector(PL_T, -2.5)
+    .add(V(0, 9, 0));
+  const low = PL.clone()
+    .addScaledVector(PL_N, 7.2)
+    .addScaledVector(PL_T, -0.5)
+    .add(V(0, 2.3, 0));
+  const near = PL.clone()
+    .addScaledVector(PL_N, 4.5)
+    .add(V(0, 1.45, 0));
+  const p = high.lerp(low, d).lerp(near, dolly);
+  const t = PL_CENTER.clone().add(V(0, -1.2 * (1 - d), 0));
+  return { p, t, fov: 40, roll: 0.03 * (1 - d) };
+};
+// footprints walking up to the plaque (from the camera's left)
+const FOOTPRINTS = (() => {
+  const out: { p: THREE.Vector3; yaw: number }[] = [];
+  const a = PL.clone().addScaledVector(PL_N, 11).addScaledVector(PL_T, -2.6);
+  const b = PL.clone().addScaledVector(PL_N, 0.9).addScaledVector(PL_T, -0.3);
+  const c = PL.clone().addScaledVector(PL_N, 5.5).addScaledVector(PL_T, -2.2);
+  const pt = (u: number) =>
+    a
+      .clone()
+      .multiplyScalar((1 - u) ** 2)
+      .addScaledVector(c, 2 * u * (1 - u))
+      .addScaledVector(b, u * u);
+  for (let i = 0; i < 22; i++) {
+    const u = i / 21;
+    const p = pt(u);
+    const dir = pt(Math.min(1, u + 0.01))
+      .sub(pt(Math.max(0, u - 0.01)))
+      .normalize();
+    const side = V(dir.z, 0, -dir.x).multiplyScalar(i % 2 ? 0.16 : -0.16);
+    p.add(side);
+    p.y = groundHeight(p.x, p.z) + 0.03;
+    out.push({ p, yaw: Math.atan2(dir.x, dir.z) });
+  }
+  return out;
+})();
+// which word of "CURTA • SIGA • COMPARTILHE" glows, from the narration timing
+const PLAQUE_WORDS = (() => {
+  const b = BLOCKS[BLOCKS.length - 1];
+  return b.words.filter((w) => w.key).map((w) => w.spokenAt);
+})();
+const plaqueGlow = (f: number) => {
+  let word = -1;
+  PLAQUE_WORDS.forEach((at, i) => {
+    if (f >= at - 2) word = i;
+  });
+  if (word < 0) return { word, glow: 0 };
+  const since = f - (PLAQUE_WORDS[word] - 2);
+  return { word, glow: interpolate(since, [0, 2, 10], [0, 5, 3.2], clamp) };
+};
+
 const slowT = (f: number, at: number) => Math.max(0, (f - at) / FPS) * 0.32; // slow-motion seconds after impact
 const STAGE5_FROM = V(0.35, 1, 0.2).normalize();
 const stage5Dist = (f: number) =>
@@ -264,8 +344,9 @@ export const cameraPose = (f: number): Pose => {
       roll: 0,
     };
   }
-  // scene 6: the Moon turns, the camera advances; ends on scene 1's starting pose (loop)
-  return shotA1(f - DURATION);
+  // scene 6: the Moon turns, the camera advances (same path as scene 1's opening)
+  if (sc === 5) return shotA1(f - END6);
+  return plaqueShot(f);
 };
 
 const CameraRig: React.FC<{ pose: Pose }> = ({ pose }) => {
@@ -537,12 +618,12 @@ const SpaceSet: React.FC<{ frame: number; pose: Pose; nasa: Nasa }> = ({
   if (sc === 0) {
     rocket = { p: rocket1World(frame), q: rocket1Quat(frame) };
   } else if (sc === 5) {
-    const k = interpolate(frame, [DURATION - 22, DURATION], [0, 1], {
+    const k = interpolate(frame, [END6 - 22, END6], [0, 1], {
       ...clamp,
       easing: Easing.out(Easing.cubic),
     });
     if (k > 0) {
-      const g = frame - DURATION; // same path as scene 1, at negative frames
+      const g = frame - END6; // same path as scene 1, at negative frames
       const target = rocket1World(g);
       const from = V(15, -26, camZ1(g) + 8);
       rocket = { p: from.lerp(target, k), q: rocket1Quat(g) };
@@ -552,7 +633,7 @@ const SpaceSet: React.FC<{ frame: number; pose: Pose; nasa: Nasa }> = ({
     sc === 5
       ? interpolate(
           frame,
-          [S[5] + 2, S[5] + 10, DURATION - 9, DURATION - 1],
+          [S[5] + 2, S[5] + 10, END6 - 9, END6 - 1],
           [0, 1, 1, 0],
           clamp,
         )
@@ -871,8 +952,9 @@ const ripple = (r: number, t: number) => {
   return 0.9 * env * Math.sin((2 * Math.PI * (r - front)) / RIPPLE_L);
 };
 
-const Ground: React.FC<{ frame: number }> = ({ frame }) => {
+const Ground: React.FC<{ frame: number; nasa: Nasa }> = ({ frame, nasa }) => {
   const sc = sceneOf(frame);
+  void nasa;
   const tex = getRegolithTextures();
   const geom = useMemo(() => {
     const b = getGroundBase();
@@ -888,12 +970,12 @@ const Ground: React.FC<{ frame: number }> = ({ frame }) => {
       new THREE.MeshStandardMaterial({
         map: tex.map,
         normalMap: tex.normal,
-        normalScale: new THREE.Vector2(0.45, 0.45),
+        normalScale: new THREE.Vector2(0.3, 0.3),
         roughness: 1,
         metalness: 0,
         color: "#c2c2c2",
       }),
-    [tex],
+    [tex.map, tex.normal],
   );
   // per-frame deformation (stateless: rebuilt from the base every frame)
   const b = getGroundBase();
@@ -1246,23 +1328,27 @@ const CraterRays: React.FC<{ c: number }> = ({ c }) => {
   );
 };
 
-const SurfaceLights: React.FC = () => {
+// tight = scene 7: the shadow map covers only the area around the plaque (crisp, long post shadow)
+const SurfaceLights: React.FC<{ tight?: boolean }> = ({ tight = false }) => {
   const light = useMemo(() => {
     const l = new THREE.DirectionalLight("#fffaf4", 3.4);
-    l.position.copy(SUN_GROUND.clone().multiplyScalar(300));
+    const center = tight ? PL.clone() : V(0, 0, 0);
+    l.position.copy(center.clone().addScaledVector(SUN_GROUND, 300));
+    l.target.position.copy(center);
     l.castShadow = true;
     l.shadow.mapSize.set(4096, 4096);
     const c = l.shadow.camera as THREE.OrthographicCamera;
-    c.left = -140;
-    c.right = 140;
-    c.top = 140;
-    c.bottom = -140;
+    const span = tight ? 22 : 140;
+    c.left = -span;
+    c.right = span;
+    c.top = span;
+    c.bottom = -span;
     c.near = 10;
     c.far = 700;
     l.shadow.bias = -0.0004;
-    l.shadow.normalBias = 0.4;
+    l.shadow.normalBias = tight ? 0.05 : 0.4;
     return l;
-  }, []);
+  }, [tight]);
   return (
     <>
       <primitive object={light} />
@@ -1281,6 +1367,7 @@ const SurfaceSet: React.FC<{ frame: number; pose: Pose; nasa: Nasa }> = ({
 }) => {
   const sc = sceneOf(frame);
   const env = useEnv();
+  const plaqueEnv = useMemo(() => makeSpaceEnv(SUN_GROUND), []);
   const origin = V(0, H0, 0);
   let stage: React.ReactNode = null;
   let fx: React.ReactNode = null;
@@ -1358,6 +1445,34 @@ const SurfaceSet: React.FC<{ frame: number; pose: Pose; nasa: Nasa }> = ({
         </>
       );
     }
+  } else if (sc === 6) {
+    const pg = plaqueGlow(frame);
+    fx = (
+      <>
+        <CraterRays c={1} />
+        <group position={PL} rotation={[0, PL_YAW, 0]}>
+          <Plaque envMap={plaqueEnv} word={pg.word} glow={pg.glow} />
+        </group>
+        {FOOTPRINTS.map((fp, i) => (
+          <mesh
+            key={i}
+            position={fp.p}
+            rotation={[-Math.PI / 2, 0, fp.yaw + Math.PI]}
+            receiveShadow
+          >
+            <planeGeometry args={[0.2, 0.42]} />
+            <meshStandardMaterial
+              map={getBootTexture()}
+              transparent
+              depthWrite={false}
+              roughness={1}
+              polygonOffset
+              polygonOffsetFactor={-3}
+            />
+          </mesh>
+        ))}
+      </>
+    );
   } else {
     if (frame < IMPACT5) {
       const p = STAGE5_FROM.clone()
@@ -1422,14 +1537,18 @@ const SurfaceSet: React.FC<{ frame: number; pose: Pose; nasa: Nasa }> = ({
   }
   return (
     <>
-      <SurfaceLights />
+      <SurfaceLights tight={sc === 6} />
       <Stars center={pose.p} />
       {/* Earth hanging low in the black sky */}
       {/* NASA Blue Marble with clouds, lit by the same sun (night side in shadow) */}
       <group
         position={pose.p
           .clone()
-          .add(V(-0.5, 0.22, -0.84).normalize().multiplyScalar(2000))}
+          .add(
+            (sc === 6 ? V(-0.52, 0.2, -0.83) : V(-0.5, 0.22, -0.84))
+              .normalize()
+              .multiplyScalar(2000),
+          )}
       >
         <mesh rotation={[0.2, -1.03, 0.4]}>
           <sphereGeometry args={[62, 96, 48]} />
@@ -1440,7 +1559,7 @@ const SurfaceSet: React.FC<{ frame: number; pose: Pose; nasa: Nasa }> = ({
           />
         </mesh>
       </group>
-      <Ground frame={frame} />
+      <Ground frame={frame} nasa={nasa} />
       {stage}
       {fx}
     </>
@@ -1473,7 +1592,7 @@ export const FogueteScene: React.FC = () => {
       )}
       {sc === 1 && <DriftSet frame={frame} pose={pose} />}
       {sc === 2 && <MapSet frame={frame} pose={pose} />}
-      {nasa && (sc === 3 || sc === 4) && (
+      {nasa && (sc === 3 || sc === 4 || sc === 6) && (
         <SurfaceSet frame={frame} pose={pose} nasa={nasa} />
       )}
     </ThreeCanvas>

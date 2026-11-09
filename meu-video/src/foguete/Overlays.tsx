@@ -9,7 +9,7 @@ import {
 } from "remotion";
 import { FONT, SAFE_Y } from "../venus/Overlays";
 import { BLOCKS, PUNCHES } from "./captions";
-import { IMPACT, IMPACT5, S, sceneEnd, sceneOf } from "./timeline";
+import { DURATION, IMPACT, IMPACT5, S, sceneEnd, sceneOf } from "./timeline";
 
 const clamp = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const KEY = "#FFD23F";
@@ -58,9 +58,9 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
     <div
       style={{
         position: "absolute",
-        top: SAFE_Y + 30,
+        top: b.top ?? SAFE_Y + 30,
         left: b.side,
-        right: b.side,
+        right: b.right ?? b.side,
         opacity: out * interpolate(enter, [0, 0.4], [0, 1], clamp),
         scale: interpolate(enter, [0, 1], [0.92, 1]),
         fontFamily: FONT,
@@ -77,7 +77,7 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
             display: "flex",
             justifyContent: "center",
             alignItems: "baseline",
-            columnGap: b.size * (b.side < 80 ? 0.3 : 0.38),
+            columnGap: b.size * (b.size < 90 ? 0.3 : 0.38),
             whiteSpace: "nowrap",
           }}
         >
@@ -115,13 +115,21 @@ const Block: React.FC<{ index: number }> = ({ index }) => {
   );
 };
 
-export const Captions: React.FC = () => (
-  <AbsoluteFill>
-    {BLOCKS.map((_, i) => (
-      <Block key={i} index={i} />
-    ))}
-  </AbsoluteFill>
-);
+export const Captions: React.FC = () => {
+  const frame = useCurrentFrame();
+  // the loop fade to black takes the last caption with it
+  const fade =
+    frame >= DURATION - LOOP_FADE
+      ? 1 - (frame - (DURATION - LOOP_FADE) + 1) / LOOP_FADE
+      : 1;
+  return (
+    <AbsoluteFill style={{ opacity: fade }}>
+      {BLOCKS.map((_, i) => (
+        <Block key={i} index={i} />
+      ))}
+    </AbsoluteFill>
+  );
+};
 
 // ---------------------------------------------------------------------------
 // Camera-layer effects: punch-ins, whip pans, flashes, grading, old film
@@ -130,6 +138,7 @@ export const Captions: React.FC = () => (
 export const BOUNDARIES = S.slice(1);
 const FLASH_AT = [S[3], S[4]];
 const WHIP = 4; // frames on each side of the cut
+const LOOP_FADE = 7;
 
 export const punch = (frame: number) =>
   PUNCHES.reduce((a, p) => {
@@ -231,7 +240,7 @@ export const Grade: React.FC = () => {
     frame < S[4] + 6;
   return (
     <>
-      {!film && sc !== 3 && (
+      {!film && sc !== 3 && sc !== 6 && (
         <AbsoluteFill
           style={{
             mixBlendMode: "soft-light",
@@ -246,6 +255,15 @@ export const Grade: React.FC = () => {
         }}
       />
       {film && <FilmGrain />}
+      {/* loop: quick fade to black over the last 7 frames; frame 0 starts clean */}
+      {frame >= DURATION - LOOP_FADE && (
+        <AbsoluteFill
+          style={{
+            backgroundColor: "#000",
+            opacity: (frame - (DURATION - LOOP_FADE) + 1) / LOOP_FADE,
+          }}
+        />
+      )}
       {fl > 0 && (
         <AbsoluteFill
           style={{
