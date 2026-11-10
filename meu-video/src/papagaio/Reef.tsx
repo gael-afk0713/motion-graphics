@@ -6,6 +6,7 @@ import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferG
 import {
   alphaPoints,
   brainTexture,
+  grainSprite,
   bubbleSprite,
   CAUSTIC,
   causticMaterial,
@@ -116,7 +117,9 @@ export const ReefEnv: React.FC<EnvProps> = ({ t, night = 0, dim = 0, cam, floor 
       <fogExp2 attach="fog" args={[col.mid, mix(0.03, 0.05, night)]} />
       <hemisphereLight args={[lerpC("#e6fdff", "#5a7fe0", night), lerpC("#2c95a8", "#081230", night), mix(1.55, 0.75, night) * (1 - 0.45 * dim)]} />
       <directionalLight position={[3, 10, 5]} color={lerpC("#fff3d4", "#b4ccff", night)} intensity={mix(2.3, 1.0, night) * (1 - 0.45 * dim)} />
-      <directionalLight position={[cam.x * 0 - 2, 2, 10]} color={lerpC("#ffffff", "#8fb0ff", night)} intensity={mix(0.75, 0.55, night)} />
+      {night > 0.01 && <directionalLight position={[0, 9, -7]} color="#9fc0ff" intensity={1.7 * night} />}
+      {night > 0.01 && <directionalLight position={[-1, 10, 1]} color="#b8d0ff" intensity={0.6 * night} />}
+      <directionalLight position={[cam.x * 0 - 2, 2, 10]} color={lerpC("#ffffff", "#8fb0ff", night)} intensity={mix(0.75, 0.8, night)} />
       <mesh position={cam} material={dome}>
         <sphereGeometry args={[150, 24, 16]} />
       </mesh>
@@ -185,77 +188,82 @@ export const rockGeometry = (seed: number, algae = 0.6, detail = 5) =>
     return g;
   });
 
+const withColor = (g: THREE.BufferGeometry, k: number) => {
+  g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(k), 3));
+  return g;
+};
 const staghorn = (seed: number) =>
   memo("stag" + seed, () => {
     const r = rng(seed * 13 + 1);
     const parts: THREE.BufferGeometry[] = [];
     const up = V(0, 1, 0);
     const grow = (o: THREE.Vector3, dir: THREE.Vector3, len: number, rad: number, depth: number) => {
-      const cyl = new THREE.CylinderGeometry(rad * 0.68, rad, len, 6, 1);
+      const cyl = new THREE.CylinderGeometry(rad * 0.72, rad, len, 12, 3, true);
       cyl.translate(0, len / 2, 0);
       cyl.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(up, dir));
       cyl.translate(o.x, o.y, o.z);
       const tip = o.clone().addScaledVector(dir, len);
-      const tint = depth <= 1 ? 1 : depth === 2 ? 0.45 : 0.1;
-      const n = cyl.attributes.position.count;
-      const col = new Float32Array(n * 3);
-      for (let i = 0; i < n; i++) {
-        const k = cyl.attributes.position.getY(i) > (o.y + tip.y) / 2 ? tint : tint * 0.6;
-        col.set([mix(0.78, 1, k), mix(0.78, 1, k), mix(0.78, 1, k)], i * 3);
-      }
-      cyl.setAttribute("color", new THREE.BufferAttribute(col, 3));
-      parts.push(cyl);
-      if (depth <= 0) {
-        const cap = new THREE.SphereGeometry(rad * 0.7, 6, 4);
-        cap.translate(tip.x, tip.y, tip.z);
-        cap.setAttribute("color", new THREE.BufferAttribute(new Float32Array(cap.attributes.position.count * 3).fill(1), 3));
-        parts.push(cap);
-        return;
-      }
+      // lighter towards the tips, like living staghorn
+      const tint = depth <= 0 ? 1 : depth === 1 ? 0.6 : depth === 2 ? 0.3 : 0.1;
+      parts.push(withColor(cyl, mix(0.74, 1, tint)));
+      // round joint / round tip
+      const cap = new THREE.SphereGeometry(rad * 0.74, 12, 8);
+      cap.translate(tip.x, tip.y, tip.z);
+      parts.push(withColor(cap, mix(0.74, 1, depth <= 0 ? 1 : tint)));
+      if (depth <= 0) return;
       const kids = depth >= 3 ? 3 : 2 + (r() > 0.6 ? 1 : 0);
       for (let k = 0; k < kids; k++) {
         const d = dir
           .clone()
           .add(V((r() - 0.5) * 1.5, 0.35 + r() * 0.3, (r() - 0.5) * 1.5))
           .normalize();
-        grow(tip, d, len * (0.68 + r() * 0.15), rad * 0.72, depth - 1);
+        grow(tip, d, len * (0.68 + r() * 0.15), rad * 0.74, depth - 1);
       }
     };
     for (let k = 0; k < 3; k++) grow(V((r() - 0.5) * 0.4, 0, (r() - 0.5) * 0.4), V((r() - 0.5) * 0.8, 1, (r() - 0.5) * 0.8).normalize(), 0.55, 0.12, 3);
-    const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!;
-    g.computeVertexNormals();
-    return g;
+    return mergeGeometries(parts)!;
   });
 
 const tableCoral = (seed: number) =>
   memo("table" + seed, () => {
     const parts: THREE.BufferGeometry[] = [];
-    const stalk = new THREE.CylinderGeometry(0.22, 0.42, 1, 10, 1);
+    const stalk = new THREE.CylinderGeometry(0.2, 0.44, 1.05, 24, 4);
     stalk.translate(0, 0.5, 0);
     parts.push(stalk);
     [0, 1].forEach((k) => {
       const R = 1.5 - k * 0.55;
-      const plate = new THREE.CylinderGeometry(R, R * 0.72, 0.16, 48, 2);
+      // rounded plate: a lathe with a soft rim, slightly cupped
+      const prof = [
+        [0.001, -0.06],
+        [R * 0.55, -0.07],
+        [R * 0.9, -0.03],
+        [R * 0.985, 0.02],
+        [R, 0.06],
+        [R * 0.97, 0.1],
+        [R * 0.8, 0.1],
+        [R * 0.4, 0.06],
+        [0.001, 0.05],
+      ].map(([x, y]) => new THREE.Vector2(x, y));
+      const plate = new THREE.LatheGeometry(new THREE.SplineCurve(prof).getPoints(28), 72);
       const p = plate.attributes.position;
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i);
         const z = p.getZ(i);
         const rr = Math.hypot(x, z) / R;
         const a = Math.atan2(z, x);
-        const s = 1 + 0.12 * Math.sin(a * 5 + seed) * rr + 0.06 * Math.sin(a * 13 + seed * 2) * rr;
-        p.setXYZ(i, x * s, p.getY(i) + 0.14 * rr * rr + 0.03 * Math.sin(a * 9), z * s);
+        const s2 = 1 + 0.1 * Math.sin(a * 5 + seed) * rr + 0.04 * Math.sin(a * 11 + seed * 2) * rr;
+        p.setXYZ(i, x * s2, p.getY(i) + 0.16 * rr * rr + 0.025 * Math.sin(a * 7 + seed) * rr, z * s2);
       }
-      plate.translate(k * 0.25, 1.02 + k * 0.38, k * 0.2);
+      plate.computeVertexNormals();
+      plate.translate(k * 0.25, 1.06 + k * 0.4, k * 0.2);
       parts.push(plate);
     });
-    const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!;
-    g.computeVertexNormals();
-    return g;
+    return mergeGeometries(parts)!;
   });
 
 const brainGeo = () =>
   memo("brainGeo", () => {
-    const g = new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const g = new THREE.SphereGeometry(1, 64, 32, 0, Math.PI * 2, 0, Math.PI * 0.55);
     g.scale(1, 0.78, 1);
     return g;
   });
@@ -266,16 +274,24 @@ const tubeGeo = () =>
     const parts: THREE.BufferGeometry[] = [];
     for (let k = 0; k < 5; k++) {
       const h = 0.7 + r() * 0.9;
-      const c = new THREE.CylinderGeometry(0.16, 0.11, h, 10, 1, true);
-      c.translate((r() - 0.5) * 0.7, h / 2, (r() - 0.5) * 0.7);
+      const prof = [
+        [0.1, 0],
+        [0.13, h * 0.5],
+        [0.17, h * 0.92],
+        [0.18, h],
+        [0.15, h + 0.02],
+        [0.11, h * 0.9],
+        [0.08, h * 0.5],
+      ].map(([x, y]) => new THREE.Vector2(x, y));
+      const c = new THREE.LatheGeometry(new THREE.SplineCurve(prof).getPoints(16), 24);
+      c.translate((r() - 0.5) * 0.7, 0, (r() - 0.5) * 0.7);
       parts.push(c);
     }
-    const g = mergeGeometries(parts.map((p) => p.toNonIndexed()))!;
-    g.computeVertexNormals();
-    return g;
+    return mergeGeometries(parts)!;
   });
 
-const PALETTE = ["#ff6fa8", "#b46bff", "#ff8a3c", "#ffd24a", "#ff5f7a", "#8f7bff", "#ffab5e", "#f25fc4"];
+// pink, purple, orange and yellow, a little muted so the fish stays the star
+const PALETTE = ["#f08fb0", "#a987e0", "#f29a5c", "#edc866", "#ec8292", "#9a8fe6", "#f2b27c", "#de86c2"];
 type Item = { kind: number; x: number; z: number; s: number; rot: number; color: string; seed: number };
 const layout = () =>
   memo("layout", () => {
@@ -326,7 +342,7 @@ export const Coral: React.FC<{ item: Item }> = ({ item }) => {
     geometry = brainGeo();
     material = coralMat("brain" + color, () => {
       const tx = brainTexture();
-      return causticMaterial({ color, map: tx, bumpMap: tx, bumpScale: 5, roughness: 0.7 }, 0.9);
+      return causticMaterial({ color, map: tx, bumpMap: tx, bumpScale: 2.2, roughness: 0.75 }, 0.9);
     });
   } else if (kind === 2) {
     geometry = staghorn(seed);
@@ -386,8 +402,8 @@ export const SandCloud: React.FC<{
       rnd,
       puff: mk(),
       grain: mk(),
-      puffMat: alphaPoints({ map: softSprite(), size: 0.5 * size, opacity: 0.55, color: "#fffaf0" }),
-      grainMat: alphaPoints({ map: softSprite(), size: 0.085 * size, opacity: 1, color: "#ffffff" }),
+      puffMat: alphaPoints({ map: softSprite(), size: 0.42 * size, opacity: 0.1, color: "#fffaf0" }),
+      grainMat: alphaPoints({ map: grainSprite(), size: 0.06 * size, opacity: 1, color: "#ffffff" }),
     };
   }, [count, seed, size]);
   const pp = sys.puff.attributes.position as THREE.BufferAttribute;
@@ -414,10 +430,10 @@ export const SandCloud: React.FC<{
     const y = Math.max(floorY + r2 * 0.05, yRaw);
     const landed = yRaw < floorY ? 1 : 0;
     pp.setXYZ(i, x, y, z);
-    gp.setXYZ(i, x + (r3 - 0.5) * 0.12, y + (r0 - 0.5) * 0.12, z + (r1 - 0.5) * 0.1);
+    gp.setXYZ(i, x + (r3 - 0.5) * 0.5 * spread * k, Math.max(floorY + r2 * 0.04, y + (r0 - 0.5) * 0.5 * spread * k), z + (r1 - 0.5) * 0.45 * spread * k);
     const fade = Math.min(1, age / 4) * Math.exp(-age * 0.008) * (landed ? 0.35 : 1);
     pc.setX(i, fade);
-    const tw = 0.45 + 0.55 * Math.max(0, Math.sin(age * 0.5 + r0 * 40)) ** 3;
+    const tw = 0.55 + 0.45 * Math.max(0, Math.sin(age * 0.5 + r0 * 40)) ** 3;
     const gfade = Math.min(1, age / 3) * (landed ? 0.5 : 1) * tw;
     gc.setX(i, gfade);
   }

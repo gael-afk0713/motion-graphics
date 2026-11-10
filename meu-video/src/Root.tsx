@@ -12,6 +12,7 @@ import { CuriosarioOutro, OUTRO_DURATION, OUTRO_FPS } from "./components/Curiosa
 import { WithOutro, withOutroDuration } from "./components/WithOutro";
 import { DURATION as PAPAGAIO1_DURATION } from "./papagaio/timeline";
 import { PapagaioVideo } from "./papagaio/PapagaioVideo";
+import { FishSheet } from "./papagaio/Scene3D";
 
 // every video ends with the standard Curiosário ending (see CLAUDE.md)
 // Venus: scenes 1-5, then the ending (replaces the "Segue pra mais" CTA scene)
@@ -83,6 +84,7 @@ export const RemotionRoot: React.FC = () => {
         width={1080}
         height={1920}
       />
+      <Composition id="Papagaio1Peixe" component={FishSheet} durationInFrames={2} fps={30} width={1080} height={1920} />
       <Composition
         id="Outro"
         component={CuriosarioOutro}

@@ -96,6 +96,20 @@ export const softSprite = () =>
     return tex(c);
   });
 
+/** crisp bright grain (solid core, tiny halo) */
+export const grainSprite = () =>
+  memo("grain-sprite", () => {
+    const [c, g] = canvas(32, 32);
+    const gr = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+    gr.addColorStop(0, "rgba(255,255,255,1)");
+    gr.addColorStop(0.42, "rgba(255,255,255,1)");
+    gr.addColorStop(0.6, "rgba(255,255,255,0.25)");
+    gr.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = gr;
+    g.fillRect(0, 0, 32, 32);
+    return tex(c);
+  });
+
 /** bubble sprite: thin bright ring + highlight */
 export const bubbleSprite = (letter = "") =>
   memo("bubble" + letter, () => {
@@ -154,7 +168,7 @@ export const INITIAL_PHASE: FishPalette = {
   back: "#6b615d",
   side: "#8c776d",
   belly: "#c9523f",
-  head: "#877670",
+  head: "#84756f",
   chin: "#d06a55",
   edge: "#34221f",
 };
@@ -173,7 +187,7 @@ export const fishSkin = (pal: FishPalette = INITIAL_PHASE, key = "initial") =>
     const [c, g] = canvas(W, H);
     const [cb, gb] = canvas(W, H);
     const colAt = (v: number) =>
-      v < 0.66 ? lerpHex(pal.back, pal.side, v / 0.66) : lerpHex(pal.side, pal.belly, (v - 0.66) / 0.3);
+      v < 0.5 ? lerpHex(pal.back, pal.side, v / 0.5) : lerpHex(pal.side, pal.belly, (v - 0.5) / 0.32);
     // base: back -> belly
     for (let y = 0; y < H; y++) {
       g.fillStyle = colAt(y / H);
@@ -230,7 +244,7 @@ export const fishSkin = (pal: FishPalette = INITIAL_PHASE, key = "initial") =>
     const [ch, gh] = canvas(W, H);
     for (let y = 0; y < H; y++) {
       const v = y / H;
-      gh.fillStyle = v < 0.5 ? lerpHex(pal.back, pal.head, v / 0.5) : lerpHex(pal.head, pal.chin, (v - 0.5) / 0.3);
+      gh.fillStyle = v < 0.5 ? lerpHex(pal.back, pal.head, v / 0.5) : v < 0.58 ? pal.head : lerpHex(pal.head, pal.chin, (v - 0.58) / 0.3);
       gh.fillRect(0, y, W, 1);
     }
     // a few soft marks radiating from the eye, like the real fish
@@ -257,8 +271,8 @@ export const fishSkin = (pal: FishPalette = INITIAL_PHASE, key = "initial") =>
     gb.drawImage(chb, 0, 0);
     // lips: a lighter ring around the beak
     const lip = g.createLinearGradient(0, 0, 0.05 * W, 0);
-    lip.addColorStop(0, lerpHex(pal.chin, "#ffe0d0", 0.5));
-    lip.addColorStop(1, "rgba(255,200,180,0)");
+    lip.addColorStop(0, lerpHex(pal.head, "#e8c8bc", 0.4));
+    lip.addColorStop(1, "rgba(200,170,160,0)");
     g.fillStyle = lip;
     g.fillRect(0, 0, 0.05 * W, H);
     // fine grain
@@ -273,46 +287,49 @@ export const fishSkin = (pal: FishPalette = INITIAL_PHASE, key = "initial") =>
     return { map: tex(c), bump: tex(cb, false) };
   });
 
-/** beak plate: many small teeth fused into a mosaic, with the seam in the middle */
-export const beakTexture = () =>
-  memo("beak", () => {
+/** beak plate: many small teeth fused into a mosaic, with the seam in the middle.
+ *  tile = brighter version whose rows repeat vertically (x-ray, growing rows) */
+export const beakTexture = (tile = false) =>
+  memo("beakTex" + tile, () => {
     const W = 512;
-    const H = 256;
+    const H = 288;
     const [c, g] = canvas(W, H);
     const gr = g.createLinearGradient(0, 0, 0, H);
-    gr.addColorStop(0, "#fffdf2"); // cutting edge
-    gr.addColorStop(1, "#efe6cc"); // base, under the lip
+    gr.addColorStop(0, tile ? "#fffbe6" : "#f6f5dc"); // cutting edge
+    gr.addColorStop(1, tile ? "#fffbe6" : "#dfe6c2"); // base: pale greenish cream
     g.fillStyle = gr;
     g.fillRect(0, 0, W, H);
     const r = rng(5);
     const rows = 9;
     const th = H / rows;
     for (let ri = 0; ri < rows; ri++) {
-      const tw = 20 + ri * 1.5;
-      for (let x = -tw; x < W + tw; x += tw) {
-        const cx = x + (ri % 2 ? tw / 2 : 0) + (r() - 0.5) * 3;
+      const tw = 512 / 22;
+      for (let k = -1; k <= 22; k++) {
+        const cx = (k + (ri % 2 ? 0.5 : 0)) * tw + (tile ? 0 : (r() - 0.5) * 3);
         const cy = (ri + 0.5) * th;
         const tg = g.createRadialGradient(cx - 2, cy - 3, 1, cx, cy, tw * 0.62);
-        tg.addColorStop(0, "rgba(255,255,255,0.95)");
-        tg.addColorStop(0.75, "rgba(250,244,226,0.9)");
-        tg.addColorStop(1, "rgba(205,190,160,0.9)");
+        tg.addColorStop(0, "rgba(255,255,250,0.95)");
+        tg.addColorStop(0.75, tile ? "rgba(255,248,214,0.95)" : "rgba(240,242,214,0.9)");
+        tg.addColorStop(1, tile ? "rgba(214,186,120,0.95)" : "rgba(196,200,160,0.9)");
         g.fillStyle = tg;
         g.beginPath();
         g.ellipse(cx, cy, tw * 0.47, th * 0.5, 0, 0, Math.PI * 2);
         g.fill();
-        g.strokeStyle = "rgba(140,120,90,0.45)";
-        g.lineWidth = 1.3;
+        g.strokeStyle = tile ? "rgba(120,90,40,0.75)" : "rgba(130,135,95,0.4)";
+        g.lineWidth = tile ? 2.2 : 1.3;
         g.stroke();
       }
     }
     // middle seam
-    g.strokeStyle = "rgba(70,58,42,0.85)";
+    g.strokeStyle = tile ? "rgba(60,45,20,0.9)" : "rgba(70,70,48,0.8)";
     g.lineWidth = 5;
     g.beginPath();
     g.moveTo(W / 2, 0);
     g.lineTo(W / 2, H);
     g.stroke();
-    return tex(c);
+    const t = tex(c);
+    if (tile) t.wrapT = THREE.RepeatWrapping;
+    return t;
   });
 
 /** fin membrane with rays (u along the fin, v = base -> edge) */
@@ -336,22 +353,30 @@ export const finTexture = (base = "#b9483a", edge = "#e8826a", ray = "#7c2a22") 
     return tex(c);
   });
 
-/** meandering ridges of a brain coral (also used as bump) */
+/** soft meandering grooves of a brain coral (isolines of a smooth tileable field) */
 export const brainTexture = () =>
   memo("brain", () => {
-    const N = 256;
+    const N = 512;
     const [c, g] = canvas(N, N);
     const img = g.createImageData(N, N);
+    const r = rng(31);
+    const waves = Array.from({ length: 12 }, () => ({
+      fx: Math.round((r() - 0.5) * 12),
+      fy: Math.round((r() - 0.5) * 12),
+      ph: r() * 6.28,
+      a: 0.5 + r(),
+    })).filter((w) => w.fx !== 0 || w.fy !== 0);
+    const norm = waves.reduce((s2, w) => s2 + w.a, 0);
     for (let y = 0; y < N; y++)
       for (let x = 0; x < N; x++) {
         const u = (x / N) * Math.PI * 2;
         const v = (y / N) * Math.PI * 2;
-        // tileable warp
-        const wx = Math.sin(v * 2 + Math.cos(u * 3) * 1.3) * 1.6 + Math.sin(u * 5 + v) * 0.5;
-        const wy = Math.cos(u * 2 + Math.sin(v * 3) * 1.3) * 1.6 + Math.cos(v * 4 - u) * 0.5;
-        const s = Math.sin(u * 7 + wx * 2.2) * Math.cos(v * 7 + wy * 2.2);
-        const k = 0.5 + 0.5 * Math.sin(s * 5.5);
-        const val = 110 + 145 * k * k;
+        let f = 0;
+        for (const w of waves) f += w.a * Math.sin(w.fx * u + w.fy * v + w.ph);
+        f /= norm;
+        // ridges between grooves: wide and smooth, no hard edges
+        const k = 0.5 + 0.5 * Math.cos(f * 30);
+        const val = 150 + 105 * k * k * (3 - 2 * k);
         const i = (y * N + x) * 4;
         img.data[i] = img.data[i + 1] = img.data[i + 2] = val;
         img.data[i + 3] = 255;
@@ -359,6 +384,7 @@ export const brainTexture = () =>
     g.putImageData(img, 0, 0);
     const t = tex(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(2, 1);
     return t;
   });
 
@@ -469,7 +495,7 @@ export const xrayMaterial = (color: string) =>
       uniform vec3 uColor; uniform float uOpacity;
       varying vec3 vN; varying vec3 vV;
       void main() {
-        float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 3.0);
+        float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 2.6);
         gl_FragColor = vec4(uColor * (0.5 + f), (0.015 + 0.9 * f) * uOpacity);
       }`,
     transparent: true,

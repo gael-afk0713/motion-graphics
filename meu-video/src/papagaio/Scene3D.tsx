@@ -155,11 +155,11 @@ const Scene1: React.FC<{ f: number }> = ({ f }) => {
   if (f < C1_SAND) {
     // front three-quarter view (the "smile"), swinging round to the side
     const a = ip(f, 0, C1_SAND, 0.42, 1.05, Easing.inOut(Easing.quad));
-    const d = ip(f, 0, C1_SAND, 3.5, 3.9);
-    cam = { pos: fp.clone().add(V(Math.cos(a) * d, 0.1, Math.sin(a) * d)), target: fp.clone().add(V(0.1, -0.12, 0)) };
+    const d = ip(f, 0, C1_SAND, 3.0, 3.6);
+    cam = { pos: fp.clone().add(V(Math.cos(a) * d, 0.1, Math.sin(a) * d)), target: fp.clone().add(V(0.32, -0.12, 0)) };
   } else if (f < C1_RISE) {
     const k = f - C1_SAND;
-    cam = { pos: fp.clone().add(V(-1.3 + k * 0.012, -0.25, 3.0 - k * 0.012)), target: fp.clone().add(V(-0.75, -0.55, 0)) };
+    cam = { pos: fp.clone().add(V(-1.4 + k * 0.012, -0.2, 3.0 - k * 0.012)), target: fp.clone().add(V(-1.0, -0.5, 0)) };
   } else {
     const k = ip(f, C1_RISE, C1_ISLAND, 0, 1, Easing.in(Easing.quad));
     cam = {
@@ -174,8 +174,8 @@ const Scene1: React.FC<{ f: number }> = ({ f }) => {
       <Rig {...cam} />
       <ReefEnv t={t} cam={cam.pos} />
       <CoralField x={fp.x} />
-      <Fish t={t} position={fp} open={0.3 + 0.08 * Math.sin(f * 0.2)} look={[0.3, 0]} />
-      <SandCloud f={f} from={-70} to={C1_ISLAND} emitter={emitter} count={900} push={0.03} />
+      <Fish t={t} position={fp} open={0.2 + 0.06 * Math.sin(f * 0.2)} look={[0.3, 0]} />
+      <SandCloud f={f} from={-70} to={C1_ISLAND} emitter={emitter} count={1500} push={0.03} spread={1.5} />
     </>
   );
 };
@@ -200,7 +200,7 @@ const P2 = V(-8, 2.6, 0);
 const ROCK2 = V(-4.7, 0, 0);
 const PITCH2 = -0.5;
 const IMPACT2 = V(ROCK2.x - 1.25, 1.02, 0.15);
-const tipOffset = (pitch: number) => V(1.03, -0.06, 0).applyAxisAngle(V(0, 0, 1), pitch);
+const tipOffset = (pitch: number) => V(1.032, -0.055, 0).applyAxisAngle(V(0, 0, 1), pitch);
 const Scene2: React.FC<{ f: number }> = ({ f }) => {
   const t = f / FPS;
   const G = C2_GROW - S[1];
@@ -214,18 +214,18 @@ const Scene2: React.FC<{ f: number }> = ({ f }) => {
   let glow = 0;
   if (f < G) {
     // frontal close-up of the mouth: the head turns translucent, the teeth light up
-    xray = 0.72 * ip(f, 5, 18, 0, 1);
-    glow = ip(f, 5, 18, 0, 1) * (0.8 + 0.2 * Math.sin(f * 0.35));
-    const d = ip(f, 0, G, 3.4, 2.6, out);
-    cam = { pos: fp.clone().add(V(d, 0.02, 1.0 - f * 0.006)), target: fp.clone().add(V(0.85, 0.0, 0)), fov: 30 };
+    xray = ip(f, 5, 18, 0, 1);
+    glow = xray;
+    const d = ip(f, 0, G, 2.5, 1.75, out);
+    cam = { pos: fp.clone().add(V(d, 0.02, 0.62 - f * 0.004)), target: fp.clone().add(V(0.9, -0.11, 0)), fov: 28 };
   } else if (f < BC) {
     // side close-up: the beak keeps growing
-    xray = 0.72;
-    glow = 0.45;
-    grow = ip(f, G + 3, G + 24, 0, 1, out) * (0.9 + 0.1 * Math.sin((f - G) * 0.4));
+    xray = 1;
+    glow = 1;
+    grow = ip(f, G + 3, G + 30, 0, 1, Easing.inOut(Easing.quad));
     open = 0.3;
     const k = f - G;
-    cam = { pos: fp.clone().add(V(1.35 + k * 0.004, 0.2, 2.6 - k * 0.008)), target: fp.clone().add(V(1.04, 0.03, 0)), fov: 30 };
+    cam = { pos: fp.clone().add(V(1.3 + k * 0.002, 0.06, 1.15 - k * 0.003)), target: fp.clone().add(V(0.93, -0.075, 0)), fov: 28 };
   } else {
     // medium shot: the beak hits the coral like a pickaxe
     const lunge = ip(f, B - 9, B, 0, 1, Easing.in(Easing.cubic)) - 0.25 * ip(f, B, B + 10, 0, 1, out);
@@ -249,12 +249,12 @@ const Scene2: React.FC<{ f: number }> = ({ f }) => {
   return (
     <>
       <Rig {...cam} />
-      <ReefEnv t={t} cam={cam.pos} dim={xray * 0.95} />
+      <ReefEnv t={t} cam={cam.pos} dim={xray} rays={1 - 0.6 * xray} />
       <CoralField x={fp.x} skip={(i) => Math.abs(i.x - ROCK2.x) < 2.6 && i.z > -5} />
       {day && <Coral item={{ kind: 1, x: ROCK2.x, z: 0, s: 1.7, rot: 0.6, color: "#ff6fa8", seed: 1 }} />}
       <Fish t={t} swim={day ? 0.8 : 0.35} position={fp} rotation={[0, 0, day ? PITCH2 : 0]} open={open} xray={xray} beakGlow={glow} beakGrow={grow} look={[0.4, 0]} />
       {f >= G && f < BC && (
-        <group position={fp.clone().add(V(0.74 + 0.1 * grow + 0.035 * Math.sin((f - G) * 0.5), 0.27, 0.12))} scale={0.62 * ip(f, G + 2, G + 10, 0, 1, Easing.out(Easing.back(2)))}>
+        <group position={fp.clone().add(V(0.84 + 0.04 * grow + 0.015 * Math.sin((f - G) * 0.5), 0.075, 0.1))} scale={0.16 * ip(f, G + 2, G + 10, 0, 1, Easing.out(Easing.back(2)))}>
           <mesh geometry={arrowGeo()} scale={1.16} position={[-0.045, 0, -0.01]}>
             <meshBasicMaterial color="#0b1c22" side={THREE.DoubleSide} fog={false} />
           </mesh>
@@ -316,8 +316,8 @@ const Scene3: React.FC<{ f: number }> = ({ f: raw }) => {
     const bite = ip(f, ST, CL, 0.95, 0.42, Easing.in(Easing.cubic));
     const hit = raw >= CL ? 1 : 0;
     const cam: Cam = {
-      pos: P3C.clone().add(V(3.2 - k * 0.006 - 0.3 * hit, 0.15, 2.9 + k * 0.004)),
-      target: P3C.clone().add(V(0.8, 0.02, 0)),
+      pos: P3C.clone().add(V(2.6 - k * 0.005 - 0.25 * hit, 0.12, 2.1 + k * 0.003)),
+      target: P3C.clone().add(V(0.82, 0.0, 0)),
       fov: 28,
     };
     cam.pos.add(shake(raw, CL + FREEZE, 0.03, 8));
@@ -327,9 +327,9 @@ const Scene3: React.FC<{ f: number }> = ({ f: raw }) => {
         <ReefEnv t={t} cam={cam.pos} />
         <CoralField x={P3C.x} />
         <Fish t={t} swim={0.3} position={P3C} open={bite + 0.04 * pulse(raw, CL + FREEZE + 8, 10)} look={[0.5, -0.2]} worry={hit * 0.7}>
-          <mesh geometry={rockGeometry(1, 0.3, 3)} material={rockMat()} position={[1.02, -0.07, 0]} scale={[0.085, 0.07, 0.1]} rotation={[0.3, 0.4, 0]} />
+          <mesh geometry={rockGeometry(1, 0.3, 3)} material={rockMat()} position={[1.03, -0.06, 0]} scale={[0.06, 0.05, 0.07]} rotation={[0.3, 0.4, 0]} />
         </Fish>
-        <Burst k={raw - CL} origin={P3C.clone().add(V(1.06, -0.06, 0.05))} count={26} speed={0.035} life={12} size={0.07} />
+        <Burst k={raw - CL} origin={P3C.clone().add(V(1.05, -0.055, 0.05))} count={26} speed={0.035} life={12} size={0.07} />
       </>
     );
   }
@@ -389,10 +389,10 @@ const Scene4: React.FC<{ f: number }> = ({ f }) => {
   const W = C4_WIDE - S[3];
   const fp = P4.clone().add(V(0, 0.03 * Math.sin(f * 0.09), 0));
   let cam: Cam;
-  if (f < M) cam = { pos: fp.clone().add(V(0.5, 0.02, ip(f, 0, M, 3.9, 2.5))), target: fp.clone().add(V(0.52, -0.02, 0)), fov: 30 };
+  if (f < M) cam = { pos: fp.clone().add(V(0.52, 0.02, ip(f, 0, M, 3.5, 2.7))), target: fp.clone().add(V(0.52, -0.01, 0)), fov: 30 };
   else if (f < W) {
     const k = f - M;
-    cam = { pos: fp.clone().add(V(0.3 + k * 0.003, -0.3, 1.75 - k * 0.002)), target: fp.clone().add(MILL).add(V(0.0, 0.03, 0)), fov: 26 };
+    cam = { pos: fp.clone().add(V(0.78 - k * 0.002, -0.06, 2.4 - k * 0.0055)), target: fp.clone().add(MILL).add(V(0.09, 0.02, 0)), fov: 28 };
     cam.pos.add(shake(f, GR, 0.012, 40));
   } else {
     const k = f - W;
@@ -402,7 +402,7 @@ const Scene4: React.FC<{ f: number }> = ({ f }) => {
   cam.pos.add(drift(f, 0.02));
   const speed = f < GR ? 0.28 : 0.75;
   const phase = f < GR ? f * 0.28 : GR * 0.28 + (f - GR) * speed;
-  const glow = ip(f, 28, 40, 0, 1) * (0.7 + 0.3 * Math.sin(f * 0.4));
+  const glow = ip(f, 24, 36, 0, 1) * (0.7 + 0.3 * Math.sin(f * 0.4));
   const dust = useMemo(() => {
     const N = 220;
     const r = rng(404);
@@ -410,7 +410,7 @@ const Scene4: React.FC<{ f: number }> = ({ f }) => {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(new Float32Array(N * 3), 3));
     g.setAttribute("aAlpha", new THREE.BufferAttribute(new Float32Array(N), 1));
-    return { N, rnd, g, m: alphaPoints({ map: softSprite(), size: 0.035, color: "#fff8e2", blending: THREE.AdditiveBlending, fog: false }) };
+    return { N, rnd, g, m: alphaPoints({ map: softSprite(), size: 0.028, color: "#fff8e2", blending: THREE.AdditiveBlending, fog: false }) };
   }, []);
   // coral pieces go in whole, come out of the mill as fine powder
   const feed = f >= M - 20;
@@ -445,7 +445,6 @@ const Scene4: React.FC<{ f: number }> = ({ f }) => {
         beakGlow={0.25}
         millGlow={glow}
         millPhase={phase}
-        noEyes={f >= M && f < W}
         look={[0.4, 0]}
       >
         {feed &&
@@ -454,7 +453,7 @@ const Scene4: React.FC<{ f: number }> = ({ f }) => {
             const p = GUT.getPoint(s);
             const crush = sat((S_MILL - s) / 0.05);
             return (
-              <mesh key={k} geometry={chipGeo()} material={chipMat()} position={p} scale={0.034 * (0.35 + 0.65 * crush) * (0.8 + 0.3 * (k % 2))} rotation={[f * 0.1 + k, f * 0.07, k]} renderOrder={2} />
+              <mesh key={k} geometry={chipGeo()} material={chipMat()} position={p} scale={0.028 * (0.35 + 0.65 * crush) * (0.8 + 0.3 * (k % 2))} rotation={[f * 0.1 + k, f * 0.07, k]} renderOrder={2} />
             );
           })}
         <points geometry={dust.g} material={dust.m} frustumCulled={false} renderOrder={11} />
@@ -486,7 +485,7 @@ const Scene5: React.FC<{ f: number }> = ({ f }) => {
   if (f < G) {
     const fp = fish5(f);
     const k = ip(f, 8, G, 0, 1);
-    const cam: Cam = { pos: V(fp.x - 1.0, fp.y - 0.4 - 0.9 * k, 6.2), target: V(fp.x - 1.1 - 0.3 * k, fp.y - 0.9 - 0.7 * k, 0) };
+    const cam: Cam = { pos: V(fp.x - 1.0, fp.y - 0.4 - 0.9 * k, 5.6), target: V(fp.x - 1.0 - 0.3 * k, fp.y - 0.8 - 0.7 * k, 0) };
     cam.pos.add(drift(f));
     return (
       <>
@@ -494,7 +493,7 @@ const Scene5: React.FC<{ f: number }> = ({ f }) => {
         <ReefEnv t={t} cam={cam.pos} />
         <CoralField x={fp.x} />
         <Fish t={t} position={fp} look={[0, -0.3]} />
-        <SandCloud f={f} from={-50} to={G} emitter={(tm) => fish5(tm).add(VENT)} count={1100} push={0.02} fall={0.05} seed={5} />
+        <SandCloud f={f} from={-50} to={G} emitter={(tm) => fish5(tm).add(VENT)} count={1700} push={0.02} fall={0.05} spread={1.5} seed={5} />
         {[0, 1, 2].map((i) => (
           <Mound key={i} grow={ip(f, 14 + i * 12, 55 + i * 10, 0, 0.55 - i * 0.1)} position={[12.6 + i * 1.15, 0.05, -0.2 + (i % 2) * 0.5]} />
         ))}
@@ -523,7 +522,7 @@ const Scene5: React.FC<{ f: number }> = ({ f }) => {
         <ReefEnv t={t} cam={cam.pos} />
         <CoralField x={PILE.x} skip={(i) => Math.abs(i.x - PILE.x) < 2.5 && i.z > -4.5} />
         <Mound grow={1.5 * grow} position={PILE} />
-        <SandCloud f={f} from={E - 50} to={SC} emitter={(tm) => PILE.clone().add(V(0.25 * Math.sin(tm * 0.6), 3.4, 0.2 * Math.cos(tm * 0.45)))} count={700} push={0} fall={0.06} spread={0.8} seed={8} floorY={0.25} />
+        <SandCloud f={f} from={E - 50} to={SC} emitter={(tm) => PILE.clone().add(V(0.25 * Math.sin(tm * 0.6), 3.4, 0.2 * Math.cos(tm * 0.45)))} count={1100} push={0} fall={0.06} spread={0.9} seed={8} floorY={0.25} />
       </>
     );
   }
@@ -547,7 +546,8 @@ const Scene5: React.FC<{ f: number }> = ({ f }) => {
                 from={SC - 45}
                 to={A}
                 emitter={(tm) => V(40 + 0.07 * (tm - SC), 3.1, 0).add(sc.o).add(VENT.clone().multiplyScalar(sc.s))}
-                count={260}
+                count={420}
+                spread={1.4}
                 push={0.035}
                 fall={0.035}
                 seed={20 + i}
@@ -614,7 +614,7 @@ const Scene6: React.FC<{ f: number }> = ({ f }) => {
         <Rig {...cam} />
         <ReefEnv t={t} cam={cam.pos} night={night} />
         <CoralField x={fp.x} />
-        <Fish t={t} swim={1 - 0.5 * night} position={fp} look={[0.6 * Math.sin(f * 0.25) * night, 0.3 * night]} worry={night * 0.6} />
+        <Fish t={t} swim={1 - 0.5 * night} position={fp} look={[0.6 * Math.sin(f * 0.25) * night, 0.3 * night]} worry={night * 0.6} rim={night} />
       </>
     );
   }
@@ -648,7 +648,7 @@ const Scene6: React.FC<{ f: number }> = ({ f }) => {
     // macro: one of them on a scale, a tiny red drop
     const k = f - BL;
     const fp = P6.clone().add(V(6, 0, 0));
-    const spot = flank(-0.12, 0.06);
+    const spot = flank(-0.1, 0.04);
     const wp = fp.clone().add(spot);
     const land = ip(f, BL, BL + 10, 0, 1, out);
     const ip0 = wp.clone().add(V(0.02, 0.03, 0.05 + 0.4 * (1 - land)));
@@ -659,7 +659,7 @@ const Scene6: React.FC<{ f: number }> = ({ f }) => {
       <>
         <Rig {...cam} />
         <ReefEnv t={t} cam={cam.pos} night={0.85} rays={0.3} />
-        <Fish t={t} swim={0.15} position={fp} worry={1} />
+        <Fish t={t} swim={0.15} position={fp} worry={1} rim={0.6} />
         <Isopod position={ip0} rotation={[0, Math.PI / 2 + 0.25, 0.5 + 0.06 * Math.sin(f * 0.8)]} scale={0.12} />
         <pointLight position={wp.clone().add(V(0.2, 0.2, 0.5))} intensity={0.5} color="#bcd4ff" distance={2} />
         {drop > 0 && (
@@ -689,7 +689,7 @@ const Scene6: React.FC<{ f: number }> = ({ f }) => {
       <Rig {...cam} />
       <ReefEnv t={t} cam={cam.pos} night={1} rays={0.7} />
       <CoralField x={fp.x} />
-      <Fish t={t} swim={0.5} position={fp} look={[0.7 * Math.sin(f * 0.5), 0.4 * Math.cos(f * 0.37)]} worry={1} open={0.4} />
+      <Fish t={t} swim={0.5} position={fp} look={[0.7 * Math.sin(f * 0.5), 0.4 * Math.cos(f * 0.37)]} worry={1} open={0.4} rim={1} />
       <Swarm count={46} pose={pose} seed={6} />
     </>
   );
@@ -699,7 +699,7 @@ const Scene6: React.FC<{ f: number }> = ({ f }) => {
 // Scene 7: the cleaner fish helps by day... and sleeps at night
 // ---------------------------------------------------------------------------
 const P7 = V(-32, 2.7, 0);
-const TICKS = [flank(-0.25, 0.12), flank(0.05, -0.12), flank(-0.5, -0.05), flank(0.2, 0.2), flank(-0.1, 0.25)];
+const TICKS = [flank(-0.25, 0.1), flank(0.05, -0.1), flank(-0.5, -0.04), flank(0.2, 0.15), flank(-0.1, 0.18)];
 export const PECKS = [12, 28, 44, 62, 80];
 const NEST = V(-44, 0, 0);
 const Scene7: React.FC<{ f: number }> = ({ f }) => {
@@ -761,7 +761,7 @@ const Scene7: React.FC<{ f: number }> = ({ f }) => {
       <Cleaner t={t} swim={0.04} asleep position={bed} rotation={[0, 0.25, -0.12 + 0.02 * Math.sin(f * 0.1)]} scale={0.8} />
       <pointLight position={bed.clone().add(V(0, 0.8, 1))} intensity={0.9} color="#cfe0ff" distance={4} />
       <Bubbles t={k / FPS} origin={[bed.x + 0.35, bed.y + 0.2, bed.z]} count={3} rate={1.6} size={0.34} letter="z" spreadX={0.25} seed={2} />
-      <Fish t={t} swim={0.3} position={fp} rotation={[0, Math.PI + 0.5, 0]} look={[0.3, -0.5]} worry={0.8} open={0.2} />
+      <Fish t={t} swim={0.3} position={fp} rotation={[0, Math.PI + 0.5, 0]} look={[0.3, -0.5]} worry={0.8} open={0.2} rim={1} />
       <Swarm count={16} pose={pose} seed={12} />
     </>
   );
@@ -773,23 +773,47 @@ const Scene7: React.FC<{ f: number }> = ({ f }) => {
 const P8 = V(46, 2.7, 0);
 const Scene89: React.FC<{ f: number }> = ({ f }) => {
   const t = f / FPS;
-  const fp = P8.clone().add(V(0, 0.05 * Math.sin(f * 0.09), 0));
-  const cam: Cam = { pos: fp.clone().add(V(0.5 * Math.sin(f * 0.01), 0.12, ip(f, 0, 46, 5.4, 3.9, out) - f * 0.002)), target: fp.clone().add(V(0, -0.05, 0.7)), fov: 36 };
+  const fp = P8.clone().add(V(0.004 * f, 0.05 * Math.sin(f * 0.09), 0));
+  // in profile, lit by the moon: it stays readable behind the cards
+  const a = 0.28 - f * 0.0012;
+  const d = ip(f, 0, 46, 6.4, 5.2, out) - f * 0.002;
+  const cam: Cam = { pos: fp.clone().add(V(Math.sin(a) * d, 0.25, Math.cos(a) * d)), target: fp.clone().add(V(0.05, -0.45, 0)), fov: 36 };
   cam.pos.add(drift(f, 0.03));
   const pose: SwarmPose = (i, r) => {
-    const rad = 2.4 + r[1] * 2.2 - Math.min(1.1, f * 0.004);
+    const rad = 2.5 + r[1] * 2.0 - Math.min(1.0, f * 0.004);
     const ang = r[0] * 6.28 + f * 0.012 * (r[2] > 0.5 ? 1 : -1);
-    const p = V(Math.cos(ang) * rad, Math.sin(ang) * rad * 0.9 + 0.2, -1.5 + r[3] * 2.4);
-    return { p: fp.clone().add(p), dir: p.clone().negate().add(V(0, 0, 1)), s: 0.12 + 0.05 * r[2] };
+    const p = V(Math.cos(ang) * rad * 1.1, Math.sin(ang) * rad * 0.8 + 0.1, -1.6 + r[3] * 2.6);
+    return { p: fp.clone().add(p), dir: p.clone().negate(), s: 0.14 + 0.05 * r[2] };
   };
   return (
     <>
       <Rig {...cam} />
-      <ReefEnv t={t} cam={cam.pos} night={1} rays={0.7} />
+      <ReefEnv t={t} cam={cam.pos} night={1} rays={0.8} />
       <CoralField x={fp.x} />
-      <Fish t={t} swim={0.4} position={fp} rotation={[0, -Math.PI / 2 + 0.12 * Math.sin(f * 0.03), 0]} look={[0.5 * Math.sin(f * 0.21), 0.3 * Math.cos(f * 0.17)]} worry={0.9} open={0.35} />
+      <Fish t={t} swim={0.45} position={fp} look={[0.5 * Math.sin(f * 0.21), 0.3 * Math.cos(f * 0.17)]} worry={0.9} open={0.3} rim={1} />
       <Swarm count={34} pose={pose} seed={21} />
     </>
+  );
+};
+
+/** model sheet for approvals: frame 0 = side, frame 1 = front */
+export const FishSheet: React.FC = () => {
+  const frame = useCurrentFrame();
+  const { width, height } = useVideoConfig();
+  const ok = useAssets();
+  if (!ok) return null;
+  const fp = V(-8, 2.6, 0);
+  const cam: Cam =
+    frame === 0
+      ? { pos: fp.clone().add(V(0.05, 0.05, 6.6)), target: fp.clone().add(V(-0.1, 0, 0)), fov: 36 }
+      : { pos: fp.clone().add(V(3.4, 0.0, 0.45)), target: fp.clone().add(V(0.6, -0.02, 0)), fov: 30 };
+  return (
+    <ThreeCanvas width={width} height={height} camera={{ fov: 36, near: 0.05, far: 600 }} gl={{ antialias: true }}>
+      <Rig {...cam} />
+      <ReefEnv t={0.4} cam={cam.pos} />
+      <CoralField x={fp.x} />
+      <Fish t={0.4} swim={0.3} position={fp} open={0.2} look={frame === 0 ? [0.3, 0] : [0, 0]} />
+    </ThreeCanvas>
   );
 };
 
@@ -859,12 +883,12 @@ const CardA: React.FC<{ f: number }> = ({ f }) => {
       <Rig {...cam} />
       <ReefEnv t={t} cam={cam.pos} night={1} rays={0.6} />
       <CoralField x={0} />
-      <Fish t={t} swim={0.25} position={fp} open={0.55 + 0.1 * Math.sin(f * 0.3)} look={[0.3, 0]} worry={0.3} />
-      <mesh position={fp.clone().add(V(1.04 + 0.1 * blow, -0.06, 0))} scale={0.2 * blow * (1 - 0.5 * prog)}>
+      <Fish t={t} swim={0.25} position={fp} open={0.55 + 0.1 * Math.sin(f * 0.3)} look={[0.3, 0]} worry={0.3} rim={1} />
+      <mesh position={fp.clone().add(V(1.04 + 0.08 * blow, -0.055, 0))} scale={0.15 * blow * (1 - 0.5 * prog)}>
         <sphereGeometry args={[1, 24, 16]} />
         <meshPhysicalMaterial color="#d8fffb" transparent opacity={0.4} roughness={0.05} depthWrite={false} emissive="#7fe9e0" emissiveIntensity={0.5} />
       </mesh>
-      <mesh position={fp.clone().add(V(0.02, 0, 0))} material={mat} scale={[1.34, 0.72, 0.5]} renderOrder={20}>
+      <mesh position={fp.clone().add(V(0.02, 0, 0))} material={mat} scale={[1.3, 0.56, 0.42]} renderOrder={20}>
         <sphereGeometry args={[1, 48, 32]} />
       </mesh>
       <pointLight position={fp.clone().add(V(1.6, 0.6, 1.6))} intensity={2.2} color="#bffcff" distance={6} />
@@ -885,7 +909,7 @@ const CardB: React.FC<{ f: number }> = ({ f }) => {
       <ReefEnv t={t} cam={cam.pos} night={1} rays={0.6} />
       <CoralField x={0} skip={(i) => Math.abs(i.x) < 4 && i.z > -5} />
       <Crevice at={V(0.9, 1.3, -2.4)} s={1.25} gap={0.8} />
-      <Fish t={t} swim={0.7} position={fp} rotation={[0, 0.88, 0]} look={[0.5, 0]} worry={0.5} />
+      <Fish t={t} swim={0.7} position={fp} rotation={[0, 0.88, 0]} look={[0.5, 0]} worry={0.5} rim={1} />
       <pointLight position={[-2, 3.5, 3]} intensity={2.5} color="#bcd0ff" distance={9} />
     </>
   );
