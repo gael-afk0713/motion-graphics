@@ -20,9 +20,9 @@ import {
 
 // --- body profile (u = 0 snout .. 1 tail base): long oval, rounded forehead ---
 const U = [0, 0.02, 0.06, 0.12, 0.2, 0.32, 0.45, 0.6, 0.75, 0.88, 0.95, 1];
-const TOP = [0.02, 0.05, 0.1, 0.16, 0.23, 0.31, 0.36, 0.34, 0.26, 0.165, 0.125, 0.115];
-const BOT = [0.06, 0.07, 0.1, 0.15, 0.21, 0.28, 0.32, 0.3, 0.225, 0.145, 0.115, 0.11];
-const WID = [0.065, 0.075, 0.095, 0.12, 0.15, 0.18, 0.19, 0.17, 0.125, 0.075, 0.052, 0.045];
+const TOP = [0, 0.105, 0.2, 0.275, 0.315, 0.36, 0.37, 0.34, 0.26, 0.165, 0.125, 0.115];
+const BOT = [0, 0.09, 0.16, 0.215, 0.262, 0.315, 0.33, 0.3, 0.225, 0.145, 0.115, 0.11];
+const WID = [0, 0.105, 0.165, 0.2, 0.225, 0.245, 0.24, 0.2, 0.14, 0.08, 0.055, 0.045];
 const X0 = 1.0;
 const X1 = -0.85;
 const cr = (ys: number[], u: number) => {
@@ -39,8 +39,7 @@ const cr = (ys: number[], u: number) => {
 };
 export const bodyX = (u: number) => X0 + (X1 - X0) * u;
 export const bodyU = (x: number) => (x - X0) / (X1 - X0);
-// the snout tip (and the mouth) sits low, a little below the middle of the head
-const yc = (u: number) => -0.115 * (1 - smooth(0, 0.36, u));
+const yc = (u: number) => -0.055 * (1 - smooth(0, 0.3, u));
 export const bodyTop = (u: number) => yc(u) + cr(TOP, u);
 export const bodyBot = (u: number) => yc(u) - cr(BOT, u);
 export const bodyWid = (u: number) => cr(WID, u);
@@ -95,10 +94,13 @@ const bodyGeometry = () =>
 // are a mosaic of fused teeth with the central suture, and a beaded (serrated) cutting
 // edge. The mouth is always slightly open: dark gap between the plates.
 const MW = 0.063; // half-width of the mouth
-const MY0 = yc(0);
-const mouthTop = (s: number) => MY0 + TOP[0] * Math.sqrt(Math.max(0, 1 - s * s));
-const mouthBot = (s: number) => MY0 - BOT[0] * Math.sqrt(Math.max(0, 1 - s * s));
-export const BEAK_TIP = V(1.049, MY0 - 0.006, 0);
+const MY0 = -0.072; // mouth centre: at the tip of the snout, a little below its middle
+const MOUTH_T = 0.02; // half-moon: flat top edge...
+const MOUTH_B = 0.06; // ...and curved bottom edge
+const mouthTop = (s: number) => MY0 + MOUTH_T * Math.sqrt(Math.max(0, 1 - s * s));
+const mouthBot = (s: number) => MY0 - MOUTH_B * Math.sqrt(Math.max(0, 1 - s * s));
+const BEAK_SINK = 0.016;
+export const BEAK_TIP = V(1.023 - BEAK_SINK, MY0 - 0.006, 0);
 const HINGE_U = V(0.93, MY0 + 0.02, 0);
 const HINGE_L = V(0.93, MY0 - 0.05, 0);
 
@@ -120,7 +122,7 @@ const UPPER: PlateShape = {
     const c = Math.sqrt(1 - s * s);
     const yt = mouthTop(s) - 0.002;
     const xr = 0.997 - 0.014 * s * s;
-    const L = 0.052 * (0.25 + 0.75 * c); // how far it sticks out of the snout
+    const L = 0.026 * (0.25 + 0.75 * c); // just a little ahead of the lower plate
     const h = 0.024 * (0.55 + 0.45 * c); // visible height from the front (~25% of the mouth)
     const T = 0.016 * (0.5 + 0.5 * c);
     return [P2(xr - 0.014, yt + 0.004), P2(xr + L * 1.0, yt + 0.012), P2(xr + L, yt - h), P2(xr + L * 0.35, yt - h * 0.95), P2(xr - 0.014, yt - T)];
@@ -465,7 +467,7 @@ export const Fish: React.FC<FishProps> = ({
     const R = 0.062;
     const pupil = R * (0.56 - 0.18 * worry);
     return (
-      <group position={[ex, ey, ez * 0.78]} rotation={[0, side > 0 ? -0.2 : 0.2, 0]}>
+      <group position={[ex, ey, ez * 0.9]} rotation={[0, side > 0 ? -0.2 : 0.2, 0]}>
         {/* dark socket ring */}
         <mesh geometry={sphere()} scale={[R * 1.12, R * 1.12, R * 0.3]} position={[0, 0, side * R * 0.1]}>
           <meshStandardMaterial color="#3a2a26" roughness={0.6} />
@@ -476,10 +478,10 @@ export const Fish: React.FC<FishProps> = ({
         <mesh geometry={sphere()} scale={[pupil, pupil, R * 0.2]} position={[look[0] * R * 0.36, look[1] * R * 0.36, side * R * 0.5]}>
           <meshStandardMaterial color="#070707" roughness={0.1} />
         </mesh>
-        <mesh geometry={sphereLo()} scale={R * 0.2} position={[look[0] * R * 0.3 + R * 0.24, look[1] * R * 0.3 + R * 0.28, side * R * 0.5]}>
+        <mesh geometry={sphereLo()} scale={R * 0.2} position={[look[0] * R * 0.3 + R * 0.24, look[1] * R * 0.3 + R * 0.28, side * R * 0.68]}>
           <meshBasicMaterial color="#ffffff" />
         </mesh>
-        <mesh geometry={sphereLo()} scale={R * 0.09} position={[look[0] * R * 0.3 - R * 0.2, look[1] * R * 0.3 - R * 0.2, side * R * 0.5]}>
+        <mesh geometry={sphereLo()} scale={R * 0.09} position={[look[0] * R * 0.3 - R * 0.2, look[1] * R * 0.3 - R * 0.2, side * R * 0.68]}>
           <meshBasicMaterial color="#ffffff" />
         </mesh>
       </group>
@@ -524,9 +526,11 @@ export const Fish: React.FC<FishProps> = ({
         {!x && rim > 0.01 && <mesh geometry={bodyGeometry()} material={mats.moon} scale={1.02} renderOrder={4} />}
         {!noEyes && eye(1)}
         {!noEyes && !x && eye(-1)}
-        {/* mouth: dark inside, the two plates (mosaic + beaded edge), fleshy upper lip */}
+        {/* mouth: dark inside, the two plates (mosaic + beaded edge), fleshy upper lip;
+            set slightly into the round v2 snout so it comes out of the skin */}
+        <group position={[-BEAK_SINK, 0, 0]}>
         {!x && (
-          <mesh material={mats.inside} position={[0.972, MY0 - 0.02, 0]} scale={[0.036, 0.043, 0.062]}>
+          <mesh material={mats.inside} position={[0.976, MY0 - 0.018, 0]} scale={[0.034, 0.036, 0.056]}>
             <sphereGeometry args={[1, 24, 16]} />
           </mesh>
         )}
@@ -539,6 +543,7 @@ export const Fish: React.FC<FishProps> = ({
         {bright && beakGrow > 0.01 && plate(true, "plate", mats.fresh, 7)}
         {bright && beakGrow > 0.01 && plate(false, "plate", mats.fresh, 7)}
         {!x && <mesh geometry={upperLip()} material={mats.lip} />}
+        </group>
         {bright && (
           <sprite position={[0.99, MY0 - 0.01, 0]} scale={0.4 * beakGlow} renderOrder={2}>
             <spriteMaterial map={softSprite()} color="#fff1c0" transparent opacity={0.28 * beakGlow} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} fog={false} />
