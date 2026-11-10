@@ -292,6 +292,7 @@ const tubeGeo = () =>
 
 // pink, purple, orange and yellow, a little muted so the fish stays the star
 const PALETTE = ["#f08fb0", "#a987e0", "#f29a5c", "#edc866", "#ec8292", "#9a8fe6", "#f2b27c", "#de86c2"];
+const BRAIN = ["#d8c29b", "#c7a447", "#8f9a5c", "#b7a2cc"];
 type Item = { kind: number; x: number; z: number; s: number; rot: number; color: string; seed: number };
 const layout = () =>
   memo("layout", () => {
@@ -340,9 +341,11 @@ export const Coral: React.FC<{ item: Item }> = ({ item }) => {
     sy = 0.75;
   } else if (kind === 1) {
     geometry = brainGeo();
-    material = coralMat("brain" + color, () => {
+    // natural brain-coral tones: beige, mustard, olive, soft lilac
+    const bc = BRAIN[(color.charCodeAt(1) + color.charCodeAt(3) + color.charCodeAt(5)) % BRAIN.length];
+    material = coralMat("brainN" + bc, () => {
       const tx = brainTexture();
-      return causticMaterial({ color, map: tx, bumpMap: tx, bumpScale: 2.2, roughness: 0.75 }, 0.9);
+      return causticMaterial({ color: bc, map: tx, bumpMap: tx, bumpScale: 1.4, roughness: 0.85 }, 0.9);
     });
   } else if (kind === 2) {
     geometry = staghorn(seed);

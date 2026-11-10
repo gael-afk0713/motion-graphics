@@ -84,7 +84,7 @@ export const RemotionRoot: React.FC = () => {
         width={1080}
         height={1920}
       />
-      <Composition id="Papagaio1Peixe" component={FishSheet} durationInFrames={2} fps={30} width={1080} height={1920} />
+      <Composition id="Papagaio1Peixe" component={FishSheet} durationInFrames={3} fps={30} width={1080} height={1920} />
       <Composition
         id="Outro"
         component={CuriosarioOutro}

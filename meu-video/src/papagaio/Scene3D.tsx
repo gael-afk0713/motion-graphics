@@ -154,9 +154,9 @@ const Scene1: React.FC<{ f: number }> = ({ f }) => {
   let cam: Cam;
   if (f < C1_SAND) {
     // front three-quarter view (the "smile"), swinging round to the side
-    const a = ip(f, 0, C1_SAND, 0.42, 1.05, Easing.inOut(Easing.quad));
-    const d = ip(f, 0, C1_SAND, 3.0, 3.6);
-    cam = { pos: fp.clone().add(V(Math.cos(a) * d, 0.1, Math.sin(a) * d)), target: fp.clone().add(V(0.32, -0.12, 0)) };
+    const a = ip(f, 0, C1_SAND, 0.58, 1.0, Easing.inOut(Easing.quad));
+    const d = ip(f, 0, C1_SAND, 3.4, 3.8);
+    cam = { pos: fp.clone().add(V(Math.cos(a) * d, 0.12, Math.sin(a) * d)), target: fp.clone().add(V(ip(f, 0, C1_SAND, 0.5, 0.25), -0.08, 0)) };
   } else if (f < C1_RISE) {
     const k = f - C1_SAND;
     cam = { pos: fp.clone().add(V(-1.4 + k * 0.012, -0.2, 3.0 - k * 0.012)), target: fp.clone().add(V(-1.0, -0.5, 0)) };
@@ -200,7 +200,7 @@ const P2 = V(-8, 2.6, 0);
 const ROCK2 = V(-4.7, 0, 0);
 const PITCH2 = -0.5;
 const IMPACT2 = V(ROCK2.x - 1.25, 1.02, 0.15);
-const tipOffset = (pitch: number) => V(1.032, -0.055, 0).applyAxisAngle(V(0, 0, 1), pitch);
+const tipOffset = (pitch: number) => V(1.049, -0.12, 0).applyAxisAngle(V(0, 0, 1), pitch);
 const Scene2: React.FC<{ f: number }> = ({ f }) => {
   const t = f / FPS;
   const G = C2_GROW - S[1];
@@ -225,12 +225,12 @@ const Scene2: React.FC<{ f: number }> = ({ f }) => {
     grow = ip(f, G + 3, G + 30, 0, 1, Easing.inOut(Easing.quad));
     open = 0.3;
     const k = f - G;
-    cam = { pos: fp.clone().add(V(1.3 + k * 0.002, 0.06, 1.15 - k * 0.003)), target: fp.clone().add(V(0.93, -0.075, 0)), fov: 28 };
+    cam = { pos: fp.clone().add(V(1.1 + k * 0.002, 0.02, 1.9 - k * 0.003)), target: fp.clone().add(V(0.86, -0.06, 0)), fov: 28 };
   } else {
     // medium shot: the beak hits the coral like a pickaxe
     const lunge = ip(f, B - 9, B, 0, 1, Easing.in(Easing.cubic)) - 0.25 * ip(f, B, B + 10, 0, 1, out);
     fp = IMPACT2.clone().sub(tipOffset(PITCH2)).add(V(-Math.cos(PITCH2), -Math.sin(PITCH2), 0).multiplyScalar(1.0 * (1 - lunge)));
-    open = f < B ? ip(f, BC, B - 3, 0.4, 1) : ip(f, B, B + 3, 1, 0.15);
+    open = f < B ? ip(f, BC, B - 3, 0.4, 1) : f < B + 6 ? ip(f, B, B + 2, 1, 0) : ip(f, B + 6, B + 14, 0, 0.3);
     const k = f - BC;
     cam = {
       pos: IMPACT2.clone().add(V(-0.5 + k * 0.008, 0.7, ip(f, B - 4, B + 3, 6.0, 5.0, out))),
@@ -254,7 +254,7 @@ const Scene2: React.FC<{ f: number }> = ({ f }) => {
       {day && <Coral item={{ kind: 1, x: ROCK2.x, z: 0, s: 1.7, rot: 0.6, color: "#ff6fa8", seed: 1 }} />}
       <Fish t={t} swim={day ? 0.8 : 0.35} position={fp} rotation={[0, 0, day ? PITCH2 : 0]} open={open} xray={xray} beakGlow={glow} beakGrow={grow} look={[0.4, 0]} />
       {f >= G && f < BC && (
-        <group position={fp.clone().add(V(0.84 + 0.04 * grow + 0.015 * Math.sin((f - G) * 0.5), 0.075, 0.1))} scale={0.16 * ip(f, G + 2, G + 10, 0, 1, Easing.out(Easing.back(2)))}>
+        <group position={fp.clone().add(V(0.84 + 0.04 * grow + 0.015 * Math.sin((f - G) * 0.5), 0.03, 0.08))} scale={0.2 * ip(f, G + 2, G + 10, 0, 1, Easing.out(Easing.back(2)))}>
           <mesh geometry={arrowGeo()} scale={1.16} position={[-0.045, 0, -0.01]}>
             <meshBasicMaterial color="#0b1c22" side={THREE.DoubleSide} fog={false} />
           </mesh>
@@ -313,7 +313,7 @@ const Scene3: React.FC<{ f: number }> = ({ f: raw }) => {
   if (f >= ST) {
     // close-up: the chunk of coral does not give way
     const k = f - ST;
-    const bite = ip(f, ST, CL, 0.95, 0.42, Easing.in(Easing.cubic));
+    const bite = ip(f, ST, CL, 0.95, 0.12, Easing.in(Easing.cubic));
     const hit = raw >= CL ? 1 : 0;
     const cam: Cam = {
       pos: P3C.clone().add(V(2.6 - k * 0.005 - 0.25 * hit, 0.12, 2.1 + k * 0.003)),
@@ -327,9 +327,9 @@ const Scene3: React.FC<{ f: number }> = ({ f: raw }) => {
         <ReefEnv t={t} cam={cam.pos} />
         <CoralField x={P3C.x} />
         <Fish t={t} swim={0.3} position={P3C} open={bite + 0.04 * pulse(raw, CL + FREEZE + 8, 10)} look={[0.5, -0.2]} worry={hit * 0.7}>
-          <mesh geometry={rockGeometry(1, 0.3, 3)} material={rockMat()} position={[1.03, -0.06, 0]} scale={[0.06, 0.05, 0.07]} rotation={[0.3, 0.4, 0]} />
+          <mesh geometry={rockGeometry(1, 0.3, 3)} material={rockMat()} position={[1.025, -0.13, 0]} scale={[0.05, 0.04, 0.06]} rotation={[0.3, 0.4, 0]} />
         </Fish>
-        <Burst k={raw - CL} origin={P3C.clone().add(V(1.05, -0.055, 0.05))} count={26} speed={0.035} life={12} size={0.07} />
+        <Burst k={raw - CL} origin={P3C.clone().add(V(1.04, -0.12, 0.05))} count={26} speed={0.035} life={12} size={0.07} />
       </>
     );
   }
@@ -369,7 +369,7 @@ const Scene3: React.FC<{ f: number }> = ({ f: raw }) => {
           </group>
         ) : null,
       )}
-      <Fish t={t} swim={0.7} position={fp} rotation={[0, 0, pitch]} open={0.75 - 0.6 * nod} look={[0.5, -0.5]} />
+      <Fish t={t} swim={0.7} position={fp} rotation={[0, 0, pitch]} open={0.8 - 0.8 * nod} look={[0.5, -0.5]} />
       {BITES.map((b, i) => (
         <Burst key={i} k={f - b} origin={marks[i].wp} count={22} speed={0.04} life={16} size={0.1} color="#dff5c8" seed={i + 2} />
       ))}
@@ -805,14 +805,16 @@ export const FishSheet: React.FC = () => {
   const fp = V(-8, 2.6, 0);
   const cam: Cam =
     frame === 0
-      ? { pos: fp.clone().add(V(0.05, 0.05, 6.6)), target: fp.clone().add(V(-0.1, 0, 0)), fov: 36 }
-      : { pos: fp.clone().add(V(3.4, 0.0, 0.45)), target: fp.clone().add(V(0.6, -0.02, 0)), fov: 30 };
+      ? { pos: fp.clone().add(V(0.84, -0.02, 1.85)), target: fp.clone().add(V(0.84, -0.04, 0)), fov: 30 }
+      : frame === 1
+        ? { pos: fp.clone().add(V(2.3, -0.04, 0.0)), target: fp.clone().add(V(0.7, -0.06, 0)), fov: 30 }
+        : { pos: fp.clone().add(V(1.95, 0.05, 1.1)), target: fp.clone().add(V(0.78, -0.06, 0)), fov: 30 };
   return (
     <ThreeCanvas width={width} height={height} camera={{ fov: 36, near: 0.05, far: 600 }} gl={{ antialias: true }}>
       <Rig {...cam} />
       <ReefEnv t={0.4} cam={cam.pos} />
       <CoralField x={fp.x} />
-      <Fish t={0.4} swim={0.3} position={fp} open={0.2} look={frame === 0 ? [0.3, 0] : [0, 0]} />
+      <Fish t={0.4} swim={0} position={fp} open={0.3} look={frame === 0 ? [0.3, 0] : [0, 0]} />
     </ThreeCanvas>
   );
 };
@@ -884,7 +886,7 @@ const CardA: React.FC<{ f: number }> = ({ f }) => {
       <ReefEnv t={t} cam={cam.pos} night={1} rays={0.6} />
       <CoralField x={0} />
       <Fish t={t} swim={0.25} position={fp} open={0.55 + 0.1 * Math.sin(f * 0.3)} look={[0.3, 0]} worry={0.3} rim={1} />
-      <mesh position={fp.clone().add(V(1.04 + 0.08 * blow, -0.055, 0))} scale={0.15 * blow * (1 - 0.5 * prog)}>
+      <mesh position={fp.clone().add(V(1.04 + 0.08 * blow, -0.12, 0))} scale={0.15 * blow * (1 - 0.5 * prog)}>
         <sphereGeometry args={[1, 24, 16]} />
         <meshPhysicalMaterial color="#d8fffb" transparent opacity={0.4} roughness={0.05} depthWrite={false} emissive="#7fe9e0" emissiveIntensity={0.5} />
       </mesh>

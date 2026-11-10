@@ -353,38 +353,30 @@ export const finTexture = (base = "#b9483a", edge = "#e8826a", ray = "#7c2a22") 
     return tex(c);
   });
 
-/** soft meandering grooves of a brain coral (isolines of a smooth tileable field) */
+/** brain coral surface: irregular organic relief (smooth noise), no line pattern.
+ *  Tileable around the dome (u wraps on a circle). */
 export const brainTexture = () =>
-  memo("brain", () => {
+  memo("brainNoise", () => {
     const N = 512;
     const [c, g] = canvas(N, N);
     const img = g.createImageData(N, N);
-    const r = rng(31);
-    const waves = Array.from({ length: 12 }, () => ({
-      fx: Math.round((r() - 0.5) * 12),
-      fy: Math.round((r() - 0.5) * 12),
-      ph: r() * 6.28,
-      a: 0.5 + r(),
-    })).filter((w) => w.fx !== 0 || w.fy !== 0);
-    const norm = waves.reduce((s2, w) => s2 + w.a, 0);
+    const R = 2.2;
     for (let y = 0; y < N; y++)
       for (let x = 0; x < N; x++) {
-        const u = (x / N) * Math.PI * 2;
-        const v = (y / N) * Math.PI * 2;
-        let f = 0;
-        for (const w of waves) f += w.a * Math.sin(w.fx * u + w.fy * v + w.ph);
-        f /= norm;
-        // ridges between grooves: wide and smooth, no hard edges
-        const k = 0.5 + 0.5 * Math.cos(f * 30);
-        const val = 150 + 105 * k * k * (3 - 2 * k);
+        const a = (x / N) * Math.PI * 2;
+        const cx = Math.cos(a) * R;
+        const cz = Math.sin(a) * R;
+        const v = (y / N) * 7;
+        const big = fbm3(cx, v, cz, 4);
+        const small = fbm3(cx * 4.1 + 9, v * 4.1, cz * 4.1, 2);
+        const val = 205 + 50 * (0.65 * big + 0.35 * small - 0.5) * 2;
         const i = (y * N + x) * 4;
-        img.data[i] = img.data[i + 1] = img.data[i + 2] = val;
+        img.data[i] = img.data[i + 1] = img.data[i + 2] = Math.max(150, Math.min(255, val));
         img.data[i + 3] = 255;
       }
     g.putImageData(img, 0, 0);
     const t = tex(c);
     t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    t.repeat.set(2, 1);
     return t;
   });
 

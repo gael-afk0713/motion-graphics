@@ -2,6 +2,7 @@
 // Local axes: +x = snout, +y = up, z = sides. Body length ~2.3 units with the tail fin.
 import React, { useMemo } from "react";
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import {
   beakTexture,
   causticMaterial,
@@ -19,12 +20,11 @@ import {
 
 // --- body profile (u = 0 snout .. 1 tail base): long oval, rounded forehead ---
 const U = [0, 0.02, 0.06, 0.12, 0.2, 0.32, 0.45, 0.6, 0.75, 0.88, 0.95, 1];
-const TOP = [0, 0.105, 0.2, 0.275, 0.315, 0.36, 0.37, 0.34, 0.26, 0.165, 0.125, 0.115];
-const BOT = [0, 0.09, 0.16, 0.215, 0.262, 0.315, 0.33, 0.3, 0.225, 0.145, 0.115, 0.11];
-const WID = [0, 0.105, 0.165, 0.2, 0.225, 0.245, 0.24, 0.2, 0.14, 0.08, 0.055, 0.045];
+const TOP = [0.02, 0.05, 0.1, 0.16, 0.23, 0.31, 0.36, 0.34, 0.26, 0.165, 0.125, 0.115];
+const BOT = [0.06, 0.07, 0.1, 0.15, 0.21, 0.28, 0.32, 0.3, 0.225, 0.145, 0.115, 0.11];
+const WID = [0.065, 0.075, 0.095, 0.12, 0.15, 0.18, 0.19, 0.17, 0.125, 0.075, 0.052, 0.045];
 const X0 = 1.0;
 const X1 = -0.85;
-const U_LIP = 0.022; // the skin starts at the lips: the beak sits inside this ring
 const cr = (ys: number[], u: number) => {
   let k = 0;
   while (k < U.length - 2 && u > U[k + 1]) k++;
@@ -39,7 +39,8 @@ const cr = (ys: number[], u: number) => {
 };
 export const bodyX = (u: number) => X0 + (X1 - X0) * u;
 export const bodyU = (x: number) => (x - X0) / (X1 - X0);
-const yc = (u: number) => -0.055 * (1 - smooth(0, 0.3, u));
+// the snout tip (and the mouth) sits low, a little below the middle of the head
+const yc = (u: number) => -0.115 * (1 - smooth(0, 0.36, u));
 export const bodyTop = (u: number) => yc(u) + cr(TOP, u);
 export const bodyBot = (u: number) => yc(u) - cr(BOT, u);
 export const bodyWid = (u: number) => cr(WID, u);
@@ -59,7 +60,7 @@ const bodyGeometry = () =>
     const uv: number[] = [];
     const idx: number[] = [];
     for (let i = 0; i <= NU + 1; i++) {
-      const u = i > NU ? 1 : U_LIP + (1 - U_LIP) * (i / NU);
+      const u = i > NU ? 1 : i / NU;
       const shrink = i > NU ? 0 : 1; // closing cap at the tail base
       const t = cr(TOP, u) * shrink;
       const b = cr(BOT, u) * shrink;
@@ -86,77 +87,169 @@ const bodyGeometry = () =>
     return g;
   });
 
-/** fleshy lips: a soft ring around the mouth opening */
-const lipGeometry = () =>
-  memo("lipGeo", () => {
-    const NV = 48;
-    const NP = 10;
-    const R = 0.011;
+// --- mouth & beak (from the real photos) ----------------------------------------
+// Front: a half-moon, flat top edge and curved bottom edge, ~35% of the head width, in
+// the lower third of the head. A fleshy upper lip covers the base of the upper plate.
+// Upper plate: a thick band along the top edge that comes forward and hooks down (parrot
+// beak); lower plate: a thinner band along the bottom curve, a little further back. Both
+// are a mosaic of fused teeth with the central suture, and a beaded (serrated) cutting
+// edge. The mouth is always slightly open: dark gap between the plates.
+const MW = 0.063; // half-width of the mouth
+const MY0 = yc(0);
+const mouthTop = (s: number) => MY0 + TOP[0] * Math.sqrt(Math.max(0, 1 - s * s));
+const mouthBot = (s: number) => MY0 - BOT[0] * Math.sqrt(Math.max(0, 1 - s * s));
+export const BEAK_TIP = V(1.049, MY0 - 0.006, 0);
+const HINGE_U = V(0.93, MY0 + 0.02, 0);
+const HINGE_L = V(0.93, MY0 - 0.05, 0);
+
+const bez = (a: THREE.Vector2, b: THREE.Vector2, c: THREE.Vector2, t: number) =>
+  new THREE.Vector2(
+    (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * b.x + t * t * c.x,
+    (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * b.y + t * t * c.y,
+  );
+const P2 = (x: number, y: number) => new THREE.Vector2(x, y);
+
+type PlateShape = {
+  /** closed side profile at s: [outer base, outer control, tip, inner control, inner base] */
+  prof: (s: number) => [THREE.Vector2, THREE.Vector2, THREE.Vector2, THREE.Vector2, THREE.Vector2];
+  z: (s: number) => number;
+};
+const UPPER: PlateShape = {
+  z: (s) => MW * s * 0.97,
+  prof: (s) => {
+    const c = Math.sqrt(1 - s * s);
+    const yt = mouthTop(s) - 0.002;
+    const xr = 0.997 - 0.014 * s * s;
+    const L = 0.052 * (0.25 + 0.75 * c); // how far it sticks out of the snout
+    const h = 0.024 * (0.55 + 0.45 * c); // visible height from the front (~25% of the mouth)
+    const T = 0.016 * (0.5 + 0.5 * c);
+    return [P2(xr - 0.014, yt + 0.004), P2(xr + L * 1.0, yt + 0.012), P2(xr + L, yt - h), P2(xr + L * 0.35, yt - h * 0.95), P2(xr - 0.014, yt - T)];
+  },
+};
+const LOWER: PlateShape = {
+  z: (s) => MW * s * 0.95,
+  prof: (s) => {
+    const c = Math.sqrt(1 - s * s);
+    const yb = mouthBot(s) + 0.002;
+    const xb = 0.987 - 0.014 * s * s; // a little behind the upper plate
+    const L = 0.03 * (0.3 + 0.7 * c);
+    const h = 0.015 * (0.5 + 0.5 * c);
+    return [P2(xb - 0.014, yb - 0.004), P2(xb + L * 1.05, yb - 0.004), P2(xb + L, yb + h), P2(xb + L * 0.3, yb + h * 0.9), P2(xb - 0.014, yb + 0.012)];
+  },
+};
+const profPoint = (sh: PlateShape, s: number, q: number) => {
+  const [a, b, c, d, e] = sh.prof(s);
+  return q < 0.5 ? bez(a, b, c, q * 2) : bez(c, d, e, (q - 0.5) * 2);
+};
+
+/** solid plate lofted across the mouth; built relative to its hinge */
+const plateGeometry = (upper: boolean) =>
+  memo("beakPlate" + upper, () => {
+    const sh = upper ? UPPER : LOWER;
+    const hinge = upper ? HINGE_U : HINGE_L;
+    const NS = 40;
+    const NP = 32;
+    const S0 = 0.985;
     const pos: number[] = [];
+    const uv: number[] = [];
     const idx: number[] = [];
-    const t = cr(TOP, U_LIP);
-    const b = cr(BOT, U_LIP);
-    const w = cr(WID, U_LIP);
-    for (let j = 0; j <= NV; j++) {
-      const th = (j / NV) * Math.PI * 2;
-      const c = Math.cos(th);
-      const cy = c * (c > 0 ? t : b);
-      const cz = Math.sin(th) * w;
-      const rad = V(0, cy, cz).normalize();
-      for (let k = 0; k <= NP; k++) {
-        const ph = (k / NP) * Math.PI * 2;
-        pos.push(bodyX(U_LIP) + Math.sin(ph) * R * 1.2, yc(U_LIP) + cy * 0.985 + rad.y * Math.cos(ph) * R, cz * 0.985 + rad.z * Math.cos(ph) * R);
+    for (let i = 0; i <= NS; i++) {
+      const s = -S0 + (2 * S0 * i) / NS;
+      for (let j = 0; j <= NP; j++) {
+        const q = j / NP;
+        const p = profPoint(sh, s, q % 1);
+        pos.push(p.x - hinge.x, p.y - hinge.y, sh.z(s));
+        // u across the mouth (suture at u = 0.5), v from the base to the cutting edge and back
+        uv.push(i / NS, q < 0.5 ? q * 2 : 2 - q * 2);
       }
     }
-    for (let j = 0; j < NV; j++)
-      for (let k = 0; k < NP; k++) {
-        const a = j * (NP + 1) + k;
-        const c = a + NP + 1;
-        idx.push(a, c, a + 1, c, c + 1, a + 1);
+    for (let i = 0; i < NS; i++)
+      for (let j = 0; j < NP; j++) {
+        const a = i * (NP + 1) + j;
+        const b = a + NP + 1;
+        if (upper) idx.push(a, b, a + 1, b, b + 1, a + 1);
+        else idx.push(a, a + 1, b, b, a + 1, b + 1);
       }
+    // end caps (the corners of the mouth)
+    [0, NS].forEach((i, k) => {
+      const s = i === 0 ? -S0 : S0;
+      let cx = 0;
+      let cy = 0;
+      for (let j = 0; j < NP; j++) {
+        const p = profPoint(sh, s, j / NP);
+        cx += p.x / NP;
+        cy += p.y / NP;
+      }
+      const ci = pos.length / 3;
+      pos.push(cx - hinge.x, cy - hinge.y, sh.z(s));
+      uv.push(i / NS, 0.5);
+      for (let j = 0; j < NP; j++) {
+        const a = i * (NP + 1) + j;
+        if ((k === 0) === upper) idx.push(ci, a, a + 1);
+        else idx.push(ci, a + 1, a);
+      }
+    });
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(idx);
     g.computeVertexNormals();
     return g;
   });
 
-// --- beak: two plates of fused teeth set inside the lips, with a "smile" between them
-const BEAK_C = V(0.9, -0.055, 0);
-const BEAK_PIVOT = 0.8;
-export const BEAK_TIP = V(1.032, -0.055, 0);
-const beakGeometry = (upper: boolean) =>
-  memo("beak" + upper, () => {
-    const NA = 32;
-    const NB = 12;
-    const A = 0.95;
-    const pos: number[] = [];
-    const uv: number[] = [];
-    const idx: number[] = [];
-    for (let i = 0; i <= NA; i++) {
-      const a = -A + (2 * A * i) / NA;
-      const k = (a / A) ** 2;
-      // mouth line rises towards the corners -> smile
-      const edge = 0.03 + 0.26 * k;
-      const far = upper ? 0.95 - 0.2 * k : -0.9 + 0.3 * k;
-      const e0 = upper ? edge : edge - 0.035;
-      for (let j = 0; j <= NB; j++) {
-        const b = e0 + ((far - e0) * j) / NB;
-        pos.push(Math.cos(b) * Math.cos(a) * 0.132, Math.sin(b) * (upper ? 0.094 : 0.086), Math.cos(b) * Math.sin(a) * 0.104);
-        uv.push(i / NA, j / NB);
+/** the same plate pushed out along its normals (dark outline in the x-ray) */
+const plateOutline = (upper: boolean) =>
+  memo("beakPlateOutline" + upper, () => {
+    const g = plateGeometry(upper).clone();
+    const p = g.attributes.position;
+    const n = g.attributes.normal;
+    for (let i = 0; i < p.count; i++) p.setXYZ(i, p.getX(i) + n.getX(i) * 0.005, p.getY(i) + n.getY(i) * 0.005, p.getZ(i) + n.getZ(i) * 0.005);
+    return g;
+  });
+
+/** row of small rounded teeth along the cutting edge (the serration) */
+const beadRow = (upper: boolean) =>
+  memo("beakBeads" + upper, () => {
+    const sh = upper ? UPPER : LOWER;
+    const hinge = upper ? HINGE_U : HINGE_L;
+    const N = upper ? 22 : 19;
+    const parts: THREE.BufferGeometry[] = [];
+    for (let k = 0; k < N; k++) {
+      const s = -0.93 + (1.86 * k) / (N - 1);
+      const tip = sh.prof(s)[2];
+      const r = (upper ? 0.0039 : 0.0033) * (0.7 + 0.3 * Math.sqrt(1 - s * s));
+      const b = new THREE.SphereGeometry(r, 10, 8);
+      b.scale(0.8, 1, 1);
+      b.translate(tip.x - hinge.x - r * 0.3, tip.y - hinge.y + (upper ? r * 0.25 : -r * 0.25), sh.z(s));
+      parts.push(b);
+    }
+    return mergeGeometries(parts)!;
+  });
+
+/** fleshy upper lip: a thick band over the base of the upper plate, tapering at the corners */
+const upperLip = () =>
+  memo("upperLip", () => {
+    const pts: THREE.Vector3[] = [];
+    for (let k = 0; k <= 24; k++) {
+      const s = -1.04 + (2.08 * k) / 24;
+      const sc = Math.max(-1, Math.min(1, s));
+      // sweeps back along the sides, so from the side it reads as a band over the beak
+      pts.push(V(1.006 - 0.055 * s * s, mouthTop(sc) + 0.005 - 0.01 * Math.max(0, Math.abs(s) - 0.8), MW * s * (1 - 0.12 * s * s)));
+    }
+    const curve = new THREE.CatmullRomCurve3(pts);
+    const SEG = 64;
+    const RAD = 10;
+    const g = new THREE.TubeGeometry(curve, SEG, 0.011, RAD, false);
+    const p = g.attributes.position;
+    for (let i = 0; i <= SEG; i++) {
+      const t = i / SEG;
+      const c = curve.getPointAt(t);
+      const taper = 0.3 + 0.7 * Math.sin(Math.PI * t) ** 0.6;
+      for (let j = 0; j <= RAD; j++) {
+        const vi = i * (RAD + 1) + j;
+        p.setXYZ(vi, c.x + (p.getX(vi) - c.x) * taper, c.y + (p.getY(vi) - c.y) * taper * 0.85, c.z + (p.getZ(vi) - c.z) * taper);
       }
     }
-    for (let i = 0; i < NA; i++)
-      for (let j = 0; j < NB; j++) {
-        const p = i * (NB + 1) + j;
-        const q = p + NB + 1;
-        if (upper) idx.push(p, p + 1, q, q, p + 1, q + 1);
-        else idx.push(p, q, p + 1, q, q + 1, p + 1);
-      }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
-    g.setIndex(idx);
     g.computeVertexNormals();
     return g;
   });
@@ -212,8 +305,8 @@ const finGeometries = () =>
 export const MILL = V(0.44, -0.05, 0); // pharyngeal jaws, in the throat
 export const VENT = V(-0.6, -0.17, 0); // where the sand comes out: at the back, near the tail
 export const GUT = new THREE.CatmullRomCurve3([
-  V(0.9, -0.06, 0),
-  V(0.62, -0.055, 0),
+  V(0.96, MY0 - 0.02, 0),
+  V(0.66, -0.085, 0),
   MILL.clone(),
   V(0.2, -0.09, 0),
   V(-0.05, -0.15, 0),
@@ -300,25 +393,28 @@ export const Fish: React.FC<FishProps> = ({
       transparent: true,
       opacity: 0.94,
     });
-    const lip = causticMaterial({ color: new THREE.Color(palette.head).lerp(new THREE.Color(palette.chin), 0.45), roughness: 0.5 }, 0.4);
+    // fleshy lip: a shade lighter / rosier than the head
+    const lip = causticMaterial({ color: new THREE.Color(palette.head).lerp(new THREE.Color("#e2a596"), 0.5), roughness: 0.5 }, 0.4);
+    // plates: creamy white, light green tint, a mosaic of fused teeth with the central suture
     const beak = new THREE.MeshStandardMaterial({
       map: beakTexture(),
-      emissiveMap: beakTexture(),
-      emissive: new THREE.Color("#e9ecc8"),
-      emissiveIntensity: 0.28,
-      roughness: 0.28,
-      side: THREE.DoubleSide,
+      color: "#f4f6e6",
+      roughness: 0.32,
+      emissive: new THREE.Color("#4f5240"),
+      emissiveIntensity: 0.5,
     });
+    const bead = new THREE.MeshStandardMaterial({ color: "#f7f6e4", roughness: 0.3, emissive: new THREE.Color("#4f5240"), emissiveIntensity: 0.5 });
+    const inside = new THREE.MeshBasicMaterial({ color: "#2a2629" });
     // x-ray version: bright cream, the rows of fused teeth can slide towards the cutting edge
     const rows = beakTexture(true).clone();
     rows.needsUpdate = true;
-    const xbeak = new THREE.MeshBasicMaterial({ map: rows, side: THREE.DoubleSide, fog: false, transparent: true });
-    const outline = new THREE.MeshBasicMaterial({ color: "#07161c", side: THREE.DoubleSide, fog: false, transparent: true, depthWrite: false });
+    const xbeak = new THREE.MeshBasicMaterial({ map: rows, fog: false, transparent: true, side: THREE.DoubleSide });
+    const outline = new THREE.MeshBasicMaterial({ color: "#07161c", side: THREE.BackSide, fog: false, transparent: true, depthWrite: false });
     const fresh = new THREE.ShaderMaterial({
       uniforms: { uBand: { value: 0 }, uPulse: { value: 0 } },
       vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
       fragmentShader: `uniform float uBand; uniform float uPulse; varying vec2 vUv;
-        void main(){ if (vUv.y < 1.0 - uBand) discard; gl_FragColor = vec4(1.0, 0.82, 0.25, 0.45 + 0.3 * uPulse); }`,
+        void main(){ if (vUv.y > uBand) discard; gl_FragColor = vec4(1.0, 0.82, 0.25, 0.45 + 0.3 * uPulse); }`,
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
@@ -339,7 +435,7 @@ export const Fish: React.FC<FishProps> = ({
       depthWrite: false,
       side: THREE.DoubleSide,
     });
-    return { body, xbody, u, fin, lip, beak, xbeak, rows, outline, fresh, rim: rimM, moon, bone, spine, gut };
+    return { body, xbody, u, fin, lip, inside, beak, bead, xbeak, rows, outline, fresh, rim: rimM, moon, bone, spine, gut };
   }, [skin, palette]);
   const gutGeo = useMemo(() => new THREE.TubeGeometry(GUT, 48, 0.04, 8), []);
 
@@ -352,8 +448,8 @@ export const Fish: React.FC<FishProps> = ({
   mats.fin.opacity = 0.94 - 0.72 * xray;
   // two new rows come in from the base
   const NEW = 2 / 9;
-  mats.rows.offset.y = beakGrow * NEW;
-  mats.fresh.uniforms.uBand.value = beakGrow * NEW * 1.05;
+  mats.rows.offset.y = -beakGrow * NEW;
+  mats.fresh.uniforms.uBand.value = beakGrow * 0.32;
   mats.fresh.uniforms.uPulse.value = 0.5 + 0.5 * Math.sin(t * 14);
   const bright = x && beakGlow > 0.2;
   const beakMat = bright ? mats.xbeak : mats.beak;
@@ -361,7 +457,6 @@ export const Fish: React.FC<FishProps> = ({
   const beat = t * 7.5;
   const sway = swim * 0.16 * Math.sin(beat * 0.5);
   const flap = swim * Math.sin(beat);
-  const jaw = open * 0.5;
 
   const eye = (side: number) => {
     const ex = 0.62;
@@ -370,7 +465,7 @@ export const Fish: React.FC<FishProps> = ({
     const R = 0.062;
     const pupil = R * (0.56 - 0.18 * worry);
     return (
-      <group position={[ex, ey, ez * 0.9]} rotation={[0, side > 0 ? -0.2 : 0.2, 0]}>
+      <group position={[ex, ey, ez * 0.78]} rotation={[0, side > 0 ? -0.2 : 0.2, 0]}>
         {/* dark socket ring */}
         <mesh geometry={sphere()} scale={[R * 1.12, R * 1.12, R * 0.3]} position={[0, 0, side * R * 0.1]}>
           <meshStandardMaterial color="#3a2a26" roughness={0.6} />
@@ -381,10 +476,10 @@ export const Fish: React.FC<FishProps> = ({
         <mesh geometry={sphere()} scale={[pupil, pupil, R * 0.2]} position={[look[0] * R * 0.36, look[1] * R * 0.36, side * R * 0.5]}>
           <meshStandardMaterial color="#070707" roughness={0.1} />
         </mesh>
-        <mesh geometry={sphereLo()} scale={R * 0.2} position={[look[0] * R * 0.3 + R * 0.24, look[1] * R * 0.3 + R * 0.28, side * R * 0.68]}>
+        <mesh geometry={sphereLo()} scale={R * 0.2} position={[look[0] * R * 0.3 + R * 0.24, look[1] * R * 0.3 + R * 0.28, side * R * 0.5]}>
           <meshBasicMaterial color="#ffffff" />
         </mesh>
-        <mesh geometry={sphereLo()} scale={R * 0.09} position={[look[0] * R * 0.3 - R * 0.2, look[1] * R * 0.3 - R * 0.2, side * R * 0.68]}>
+        <mesh geometry={sphereLo()} scale={R * 0.09} position={[look[0] * R * 0.3 - R * 0.2, look[1] * R * 0.3 - R * 0.2, side * R * 0.5]}>
           <meshBasicMaterial color="#ffffff" />
         </mesh>
       </group>
@@ -408,12 +503,18 @@ export const Fish: React.FC<FishProps> = ({
     );
   const mx = 0.03 * Math.sin(millPhase);
   const my = 0.006 * Math.cos(millPhase * 2);
-  const bx = BEAK_C.x - BEAK_PIVOT;
-  const plate = (upper: boolean, material: THREE.Material, s = 1, dx = 0, order = 0) => (
-    <group rotation={[0, 0, upper ? jaw * 0.3 : -jaw]}>
-      <mesh geometry={beakGeometry(upper)} material={material} position={[bx + dx, 0, 0]} scale={[s * (1 + 0.1 * beakGrow), s, s]} renderOrder={order} />
-    </group>
-  );
+  // the plates open and close together like a beak, around hinges inside the head:
+  // open = 0.3 is the resting, slightly open mouth; 0 closes it hard; 1 is wide open
+  const bite = (open - 0.3) * 0.62;
+  const plate = (upper: boolean, kind: "plate" | "outline" | "beads", material: THREE.Material, order = 0) => {
+    const h = upper ? HINGE_U : HINGE_L;
+    const geo = kind === "plate" ? plateGeometry(upper) : kind === "outline" ? plateOutline(upper) : beadRow(upper);
+    return (
+      <group position={[h.x, h.y, 0]} rotation={[0, 0, upper ? bite : -bite]}>
+        <mesh geometry={geo} material={material} scale={[1 + 0.1 * beakGrow, 1, 1]} renderOrder={order} />
+      </group>
+    );
+  };
 
   return (
     <group {...group}>
@@ -421,25 +522,25 @@ export const Fish: React.FC<FishProps> = ({
         <mesh geometry={bodyGeometry()} material={x ? mats.xbody : mats.body} renderOrder={x ? 3 : 0} />
         {x && <mesh geometry={bodyGeometry()} material={mats.rim} scale={1.012} renderOrder={4} />}
         {!x && rim > 0.01 && <mesh geometry={bodyGeometry()} material={mats.moon} scale={1.02} renderOrder={4} />}
-        {!x && <mesh geometry={lipGeometry()} material={mats.lip} />}
         {!noEyes && eye(1)}
-        {!noEyes && eye(-1)}
-        {/* mouth: dark inside + the two beak plates, inside the lips */}
+        {!noEyes && !x && eye(-1)}
+        {/* mouth: dark inside, the two plates (mosaic + beaded edge), fleshy upper lip */}
         {!x && (
-          <mesh geometry={sphere()} position={[0.885, -0.055, 0]} scale={[0.1, 0.09, 0.098]}>
-            <meshBasicMaterial color="#1c0b0e" />
+          <mesh material={mats.inside} position={[0.972, MY0 - 0.02, 0]} scale={[0.036, 0.043, 0.062]}>
+            <sphereGeometry args={[1, 24, 16]} />
           </mesh>
         )}
-        <group position={[BEAK_PIVOT, BEAK_C.y, 0]}>
-          {bright && plate(true, mats.outline, 1.1, -0.004, 5)}
-          {bright && plate(false, mats.outline, 1.1, -0.004, 5)}
-          {plate(true, beakMat, 1, 0, bright ? 6 : 0)}
-          {plate(false, beakMat, 1, 0, bright ? 6 : 0)}
-          {bright && beakGrow > 0.01 && plate(true, mats.fresh, 1.012, 0, 7)}
-          {bright && beakGrow > 0.01 && plate(false, mats.fresh, 1.012, 0, 7)}
-        </group>
+        {bright && plate(true, "outline", mats.outline, 5)}
+        {bright && plate(false, "outline", mats.outline, 5)}
+        {plate(true, "plate", x ? beakMat : mats.beak, bright ? 6 : 0)}
+        {plate(false, "plate", x ? beakMat : mats.beak, bright ? 6 : 0)}
+        {plate(true, "beads", x ? beakMat : mats.bead, bright ? 6 : 0)}
+        {plate(false, "beads", x ? beakMat : mats.bead, bright ? 6 : 0)}
+        {bright && beakGrow > 0.01 && plate(true, "plate", mats.fresh, 7)}
+        {bright && beakGrow > 0.01 && plate(false, "plate", mats.fresh, 7)}
+        {!x && <mesh geometry={upperLip()} material={mats.lip} />}
         {bright && (
-          <sprite position={[0.96, -0.055, 0]} scale={0.55 * beakGlow} renderOrder={2}>
+          <sprite position={[0.99, MY0 - 0.01, 0]} scale={0.4 * beakGlow} renderOrder={2}>
             <spriteMaterial map={softSprite()} color="#fff1c0" transparent opacity={0.28 * beakGlow} depthWrite={false} depthTest={false} blending={THREE.AdditiveBlending} fog={false} />
           </sprite>
         )}
