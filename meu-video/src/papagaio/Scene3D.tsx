@@ -225,7 +225,7 @@ const Scene2: React.FC<{ f: number }> = ({ f }) => {
     grow = ip(f, G + 3, G + 30, 0, 1, Easing.inOut(Easing.quad));
     open = 0.3;
     const k = f - G;
-    cam = { pos: fp.clone().add(V(1.1 + k * 0.002, 0.02, 1.9 - k * 0.003)), target: fp.clone().add(V(0.86, -0.06, 0)), fov: 28 };
+    cam = { pos: fp.clone().add(V(0.96 + k * 0.002, 0.0, 2.55 - k * 0.004)), target: fp.clone().add(V(0.82, -0.05, 0)), fov: 28 };
   } else {
     // medium shot: the beak hits the coral like a pickaxe
     const lunge = ip(f, B - 9, B, 0, 1, Easing.in(Easing.cubic)) - 0.25 * ip(f, B, B + 10, 0, 1, out);
