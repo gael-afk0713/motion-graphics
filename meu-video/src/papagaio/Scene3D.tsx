@@ -809,7 +809,7 @@ export const FishSheet: React.FC = () => {
       ? { pos: fp.clone().add(V(0.84, -0.02, 1.85)), target: fp.clone().add(V(0.84, -0.04, 0)), fov: 30 }
       : frame === 1
         ? { pos: fp.clone().add(V(0.05, 0.05, 6.6)), target: fp.clone().add(V(-0.1, 0, 0)), fov: 36 }
-        : { pos: fp.clone().add(V(1.95, 0.05, 1.1)), target: fp.clone().add(V(0.78, -0.06, 0)), fov: 30 };
+        : { pos: fp.clone().add(V(2.35, 0.12, 1.65)), target: fp.clone().add(V(0.8, -0.03, 0)), fov: 30 };
   return (
     <ThreeCanvas width={width} height={height} camera={{ fov: 36, near: 0.05, far: 600 }} gl={{ antialias: true }}>
       <Rig {...cam} />

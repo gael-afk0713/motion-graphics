@@ -20,9 +20,9 @@ import {
 
 // --- body profile (u = 0 snout .. 1 tail base): long oval, rounded forehead ---
 const U = [0, 0.02, 0.06, 0.12, 0.2, 0.32, 0.45, 0.6, 0.75, 0.88, 0.95, 1];
-const TOP = [0, 0.105, 0.2, 0.275, 0.315, 0.36, 0.37, 0.34, 0.26, 0.165, 0.125, 0.115];
-const BOT = [0, 0.09, 0.16, 0.215, 0.262, 0.315, 0.33, 0.3, 0.225, 0.145, 0.115, 0.11];
-const WID = [0, 0.105, 0.165, 0.2, 0.225, 0.245, 0.24, 0.2, 0.14, 0.08, 0.055, 0.045];
+const TOP = [0, 0.07, 0.15, 0.23, 0.29, 0.33, 0.34, 0.315, 0.245, 0.16, 0.122, 0.112];
+const BOT = [0, 0.065, 0.125, 0.185, 0.24, 0.29, 0.305, 0.28, 0.21, 0.14, 0.112, 0.107];
+const WID = [0, 0.072, 0.128, 0.172, 0.21, 0.232, 0.23, 0.195, 0.14, 0.08, 0.055, 0.045];
 const X0 = 1.0;
 const X1 = -0.85;
 const cr = (ys: number[], u: number) => {
@@ -99,7 +99,8 @@ const MOUTH_T = 0.02; // half-moon: flat top edge...
 const MOUTH_B = 0.06; // ...and curved bottom edge
 const mouthTop = (s: number) => MY0 + MOUTH_T * Math.sqrt(Math.max(0, 1 - s * s));
 const mouthBot = (s: number) => MY0 - MOUTH_B * Math.sqrt(Math.max(0, 1 - s * s));
-const BEAK_SINK = 0.016;
+const BEAK_SINK = 0.02;
+const BEAK_SCALE = 1.12;
 export const BEAK_TIP = V(1.023 - BEAK_SINK, MY0 - 0.006, 0);
 const HINGE_U = V(0.93, MY0 + 0.02, 0);
 const HINGE_L = V(0.93, MY0 - 0.05, 0);
@@ -400,12 +401,12 @@ export const Fish: React.FC<FishProps> = ({
     // plates: creamy white, light green tint, a mosaic of fused teeth with the central suture
     const beak = new THREE.MeshStandardMaterial({
       map: beakTexture(),
-      color: "#f4f6e6",
-      roughness: 0.32,
-      emissive: new THREE.Color("#4f5240"),
-      emissiveIntensity: 0.5,
+      color: "#fbfaf0",
+      roughness: 0.3,
+      emissive: new THREE.Color("#66665a"),
+      emissiveIntensity: 0.6,
     });
-    const bead = new THREE.MeshStandardMaterial({ color: "#f7f6e4", roughness: 0.3, emissive: new THREE.Color("#4f5240"), emissiveIntensity: 0.5 });
+    const bead = new THREE.MeshStandardMaterial({ color: "#fdfcf4", roughness: 0.3, emissive: new THREE.Color("#66665a"), emissiveIntensity: 0.6 });
     const inside = new THREE.MeshBasicMaterial({ color: "#2a2629" });
     // x-ray version: bright cream, the rows of fused teeth can slide towards the cutting edge
     const rows = beakTexture(true).clone();
@@ -461,10 +462,10 @@ export const Fish: React.FC<FishProps> = ({
   const flap = swim * Math.sin(beat);
 
   const eye = (side: number) => {
-    const ex = 0.62;
-    const ey = 0.115;
+    const ex = 0.66;
+    const ey = 0.1;
     const ez = sideZ(bodyU(ex), ey) * side;
-    const R = 0.062;
+    const R = 0.052;
     const pupil = R * (0.56 - 0.18 * worry);
     return (
       <group position={[ex, ey, ez * 0.9]} rotation={[0, side > 0 ? -0.2 : 0.2, 0]}>
@@ -528,6 +529,7 @@ export const Fish: React.FC<FishProps> = ({
         {!noEyes && !x && eye(-1)}
         {/* mouth: dark inside, the two plates (mosaic + beaded edge), fleshy upper lip;
             set slightly into the round v2 snout so it comes out of the skin */}
+        <group position={[BEAK_TIP.x * (1 - BEAK_SCALE), BEAK_TIP.y * (1 - BEAK_SCALE), 0]} scale={BEAK_SCALE}>
         <group position={[-BEAK_SINK, 0, 0]}>
         {!x && (
           <mesh material={mats.inside} position={[0.976, MY0 - 0.018, 0]} scale={[0.034, 0.036, 0.056]}>
@@ -543,6 +545,7 @@ export const Fish: React.FC<FishProps> = ({
         {bright && beakGrow > 0.01 && plate(true, "plate", mats.fresh, 7)}
         {bright && beakGrow > 0.01 && plate(false, "plate", mats.fresh, 7)}
         {!x && <mesh geometry={upperLip()} material={mats.lip} />}
+        </group>
         </group>
         {bright && (
           <sprite position={[0.99, MY0 - 0.01, 0]} scale={0.4 * beakGlow} renderOrder={2}>
