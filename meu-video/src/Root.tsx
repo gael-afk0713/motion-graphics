@@ -10,6 +10,8 @@ import { CONTENT_DURATION as FOGUETE_CONTENT } from "./foguete/timeline";
 import { FogueteVideo } from "./foguete/FogueteVideo";
 import { CuriosarioOutro, OUTRO_DURATION, OUTRO_FPS } from "./components/CuriosarioOutro";
 import { WithOutro, withOutroDuration } from "./components/WithOutro";
+import { DURATION as PAPAGAIO1_DURATION } from "./papagaio/timeline";
+import { PapagaioVideo } from "./papagaio/PapagaioVideo";
 
 // every video ends with the standard Curiosário ending (see CLAUDE.md)
 // Venus: scenes 1-5, then the ending (replaces the "Segue pra mais" CTA scene)
@@ -27,6 +29,13 @@ const OvelhaComOutro: React.FC = () => (
 const FogueteComOutro: React.FC = () => (
   <WithOutro contentFrames={FOGUETE_CONTENT}>
     <FogueteVideo />
+  </WithOutro>
+);
+
+// Peixe-papagaio, parte 1/3: scenes 1-9, then the standard ending
+const Papagaio1ComOutro: React.FC = () => (
+  <WithOutro contentFrames={PAPAGAIO1_DURATION}>
+    <PapagaioVideo />
   </WithOutro>
 );
 
@@ -62,6 +71,14 @@ export const RemotionRoot: React.FC = () => {
         id="Foguete"
         component={FogueteComOutro}
         durationInFrames={withOutroDuration(FOGUETE_CONTENT)}
+        fps={30}
+        width={1080}
+        height={1920}
+      />
+      <Composition
+        id="Papagaio1"
+        component={Papagaio1ComOutro}
+        durationInFrames={withOutroDuration(PAPAGAIO1_DURATION)}
         fps={30}
         width={1080}
         height={1920}
