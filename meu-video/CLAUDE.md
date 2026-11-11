@@ -1,5 +1,9 @@
 # Curiosário — regras do projeto
 
+**Série Peixe-papagaio (em andamento):** antes de mexer nela, leia `docs/serie-peixe-papagaio.md`
+(tudo o que foi decidido e aprovado: design do peixe e do bico, cores por fase, regras da série, fluxo de
+aprovação e render).
+
 ## Ending padrão — OBRIGATÓRIA em todo vídeo gerado a partir de agora
 - TODO vídeo novo termina com a ending padrão `CuriosarioOutro`
   (`src/components/CuriosarioOutro.tsx`, 135 frames = 4,5 s a 30 fps, com voz
