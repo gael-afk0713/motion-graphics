@@ -63,5 +63,11 @@ export const C8_B = word(7, 15); // "B:"
 // scene 9
 export const C9_WARN = word(8, 10); // "sobrevive à noite"
 
+// scene 3: frames (scene-local) where the beak scrapes the coral; scene 7: the cleaner's pecks
+export const BITES = [10, 30, 50, 72, 92];
+export const PECKS = [12, 28, 44, 62, 80];
+// scene 5: the 0 -> 85% counter runs for this many frames
+export const COUNT_FRAMES = 34;
+
 // hard cuts / whips inside the video (for whooshes and the camera layer)
 export const WHIPS = [C1_RISE, S[1], C2_BITE_CUT, S[2], S[3], C4_MILL, S[4], C5_GLOBE, C5_85, C5_AERIAL, S[5], C6_SWARM, S[6], C7_NIGHT, S[7]];

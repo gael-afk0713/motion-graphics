@@ -1,0 +1,19 @@
+{"kit": 1, "name": "curiosario", "sr": 48000,
+ "roles": {
+  "whoosh.short": {"sound": "whoosh_fast/tight", "takes": 4, "align": "peak", "level_db": -6.0,
+                   "note": "cuts and whip pans; earshot rank 'a fast whoosh for a quick cut': strong (z 4.6)"},
+  "whoosh.long":  {"sound": "pro_whoosh_big/swell", "takes": 2, "align": "peak", "level_db": -6.0,
+                   "note": "scene transitions; rank 'a big air whoosh swell for a scene transition': strong (z 5.0)"},
+  "pop":          {"sound": "ui_pop/boop", "takes": 4, "align": "onset", "level_db": -6.0,
+                   "note": "labels, cards, pins popping in; best of the bank pops for 'a round soft pop' (weak, z 2.1)"},
+  "hit":          {"sound": "cut_hit/punch", "takes": 2, "align": "onset", "level_db": -3.0,
+                   "note": "impacts; rank 'a short punchy impact hit': plausible (z 3.0)"},
+  "crack":        {"sound": "knock/wood", "takes": 3, "align": "onset", "level_db": -4.0,
+                   "note": "a hard strike / chip; rank 'a hard stone cracking chip hit': plausible (z 2.9)"},
+  "clank":        {"sound": "tap/knuckle", "takes": 2, "align": "onset", "level_db": -4.0,
+                   "note": "hard contact that does not break; no strong match in the bank (best z 1.9)"},
+  "drip":         {"sound": "drip/bubble", "takes": 4, "align": "onset", "level_db": -8.0,
+                   "note": "bubbles and water drops; no strong CLAP match for 'bubbles underwater', best of the drip family"},
+  "tick":         {"sound": "fit/tick/domino", "takes": 3, "align": "onset", "level_db": -8.0,
+                   "note": "counters; rank 'a short clock tick for a number counter': plausible (z 2.9)"}
+ }}

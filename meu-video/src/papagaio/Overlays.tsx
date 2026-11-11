@@ -22,6 +22,7 @@ import {
   C7_NIGHT,
   C8_A,
   C8_B,
+  COUNT_FRAMES,
   DURATION,
   FREEZE,
   S,
@@ -184,7 +185,6 @@ export const ToolLabels: React.FC = () => {
 // ---------------------------------------------------------------------------
 // Scene 5: MALDIVAS tag and the 85% counter
 // ---------------------------------------------------------------------------
-export const COUNT_FRAMES = 34;
 export const Scene5Overlays: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();

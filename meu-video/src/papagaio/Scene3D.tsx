@@ -38,10 +38,12 @@ import {
   C7_NIGHT,
   C8_A,
   C8_B,
+  BITES,
   C9_WARN,
   DURATION,
   FPS,
   FREEZE,
+  PECKS,
   S,
   sceneOf,
 } from "./timeline";
@@ -291,7 +293,6 @@ const Scene2: React.FC<{ f: number }> = ({ f }) => {
 // ---------------------------------------------------------------------------
 const ROCK3 = V(1.5, 1.25, 0);
 const R3S = V(1.9, 1.35, 1.6);
-export const BITES = [10, 30, 50, 72, 92];
 const P3C = V(9, 2.7, 0);
 const Scene3: React.FC<{ f: number }> = ({ f: raw }) => {
   const ST = C3_STONE - S[2];
@@ -701,7 +702,6 @@ const Scene6: React.FC<{ f: number }> = ({ f }) => {
 // ---------------------------------------------------------------------------
 const P7 = V(-32, 2.7, 0);
 const TICKS = [flank(-0.25, 0.1), flank(0.05, -0.1), flank(-0.5, -0.04), flank(0.2, 0.15), flank(-0.1, 0.18)];
-export const PECKS = [12, 28, 44, 62, 80];
 const NEST = V(-44, 0, 0);
 const Scene7: React.FC<{ f: number }> = ({ f }) => {
   const t = f / FPS;

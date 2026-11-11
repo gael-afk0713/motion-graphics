@@ -11,8 +11,10 @@ import { FogueteVideo } from "./foguete/FogueteVideo";
 import { CuriosarioOutro, OUTRO_DURATION, OUTRO_FPS } from "./components/CuriosarioOutro";
 import { WithOutro, withOutroDuration } from "./components/WithOutro";
 import { DURATION as PAPAGAIO1_DURATION } from "./papagaio/timeline";
-import { PapagaioVideo } from "./papagaio/PapagaioVideo";
+import { PapagaioSfxStem, PapagaioVideo } from "./papagaio/PapagaioVideo";
 import { FishSheet } from "./papagaio/Scene3D";
+import { SfxDemo, SfxDemoStem } from "./sfxdemo/SfxDemo";
+import { DURATION as SFXDEMO_DURATION } from "./sfxdemo/sfx";
 
 // every video ends with the standard Curiosário ending (see CLAUDE.md)
 // Venus: scenes 1-5, then the ending (replaces the "Segue pra mais" CTA scene)
@@ -84,7 +86,12 @@ export const RemotionRoot: React.FC = () => {
         width={1080}
         height={1920}
       />
+      {/* effects only, for the SFX sync check (scripts/sfx_sync_check.py) */}
+      <Composition id="Papagaio1Sfx" component={PapagaioSfxStem} durationInFrames={PAPAGAIO1_DURATION} fps={30} width={1080} height={1920} />
       <Composition id="Papagaio1Peixe" component={FishSheet} durationInFrames={3} fps={30} width={1080} height={1920} />
+      {/* test of the earshot SFX workflow (kit + sync check), not a channel video */}
+      <Composition id="SfxSyncDemo" component={SfxDemo} durationInFrames={SFXDEMO_DURATION} fps={30} width={1080} height={1920} />
+      <Composition id="SfxSyncDemoSfx" component={SfxDemoStem} durationInFrames={SFXDEMO_DURATION} fps={30} width={1080} height={1920} />
       <Composition
         id="Outro"
         component={CuriosarioOutro}
