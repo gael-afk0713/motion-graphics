@@ -12,7 +12,8 @@ const serveUrl =
   process.env.REUSE_BUNDLE && fs.existsSync(bundleDir)
     ? bundleDir
     : await bundle({ entryPoint: path.resolve("src/index.ts"), outDir: bundleDir });
-const chromiumOptions = { gl: "swangle", ignoreCertificateErrors: true };
+// GL=angle on the PC (GPU); swangle in the cloud
+const chromiumOptions = { gl: process.env.GL ?? "swangle", ignoreCertificateErrors: true };
 const composition = await selectComposition({ serveUrl, id: process.env.COMP ?? "Papagaio1", chromiumOptions });
 for (const f of frames) {
   const t0 = Date.now();

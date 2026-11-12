@@ -18,7 +18,7 @@ const fileOf = (f) => path.posix.join(SFX_DIR, /\.\w+$/.test(f) ? f : f + ".wav"
 
 // effects with a sharp moment that must land on the action; beds and slow ramps are not checked
 // (kit effects carry their earshot role: whoosh.short, whoosh.long, pop, hit, crack, clank, drip, tick)
-const HIT = new Set(["whoosh", "whoosh.short", "whoosh.long", "crack", "bite", "clank", "tick", "pop", "drip", "splash", "impact", "hit", "click", "knock", "shutter"]);
+const HIT = new Set(["whoosh", "whoosh.short", "whoosh.long", "crack", "bite", "clank", "tick", "pop", "drip", "splash", "impact", "hit", "click", "knock", "shutter", "success", "bubblepop", "thud", "beep", "tension", "growl", "beat", "dawn", "key"]);
 const skipped = {};
 const hits = [];
 for (const x of FX) {

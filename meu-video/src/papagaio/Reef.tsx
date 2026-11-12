@@ -554,32 +554,66 @@ const isoMats = () =>
     eyes: new THREE.MeshBasicMaterial({ color: "#d8ff5a", fog: false }),
   }));
 
-export const Isopod: React.FC<Omit<React.ComponentProps<"group">, "children">> = (p) => {
+// parte 2: big dark eyes (as in the real photos) with a small white glint so they still read at night;
+// the rest of the model is the same as parte 1. eyes="glow" (default) keeps parte 1 unchanged.
+export type IsoEyes = "glow" | "dark";
+const darkEyes = () =>
+  memo("isopodDarkEyes", () => {
+    const parts = [1, -1].map((sd) => {
+      const e = new THREE.SphereGeometry(0.082, 12, 10);
+      e.translate(0.47, 0.075, sd * 0.115);
+      return e;
+    });
+    const glints = [1, -1].map((sd) => {
+      const e = new THREE.SphereGeometry(0.024, 8, 6);
+      e.translate(0.53, 0.12, sd * 0.14);
+      return e;
+    });
+    return { eyes: mergeGeometries(parts)!, glints: mergeGeometries(glints)! };
+  });
+const darkMats = () =>
+  memo("isoDarkMats", () => ({
+    eyes: new THREE.MeshStandardMaterial({ color: "#0b0a0c", roughness: 0.15, metalness: 0.1 }),
+    glint: new THREE.MeshBasicMaterial({ color: "#ffffff", fog: false }),
+  }));
+
+export const Isopod: React.FC<Omit<React.ComponentProps<"group">, "children"> & { eyes?: IsoEyes }> = ({ eyes = "glow", ...p }) => {
   const g = isopodGeo();
   const m = isoMats();
+  const d = darkEyes();
+  const dm = darkMats();
   return (
     <group {...p}>
       <mesh geometry={g.body} material={m.body} />
-      <mesh geometry={g.eyes} material={m.eyes} />
+      {eyes === "glow" ? (
+        <mesh geometry={g.eyes} material={m.eyes} />
+      ) : (
+        <>
+          <mesh geometry={d.eyes} material={dm.eyes} />
+          <mesh geometry={d.glints} material={dm.glint} />
+        </>
+      )}
     </group>
   );
 };
 
 export type SwarmPose = (i: number, rnd: number[]) => { p: THREE.Vector3; dir: THREE.Vector3; s: number } | null;
 /** many isopods; `pose` gives each one its place for the current frame */
-export const Swarm: React.FC<{ count: number; seed?: number; pose: SwarmPose; glow?: number }> = ({ count, seed = 1, pose, glow = 1 }) => {
+export const Swarm: React.FC<{ count: number; seed?: number; pose: SwarmPose; glow?: number; eyes?: IsoEyes }> = ({ count, seed = 1, pose, glow = 1, eyes: eyeKind = "glow" }) => {
   const sys = useMemo(() => {
     const g = isopodGeo();
     const m = isoMats();
     const body = new THREE.InstancedMesh(g.body, m.body, count);
-    const eyes = new THREE.InstancedMesh(g.eyes, m.eyes, count);
-    body.frustumCulled = eyes.frustumCulled = false;
+    const dark = eyeKind === "dark";
+    const eyes = new THREE.InstancedMesh(dark ? darkEyes().eyes : g.eyes, dark ? darkMats().eyes : m.eyes, count);
+    const glints = new THREE.InstancedMesh(darkEyes().glints, darkMats().glint, dark ? count : 0);
+    body.frustumCulled = eyes.frustumCulled = glints.frustumCulled = false;
     const r = rng(seed * 101 + 9);
     const rnd = Array.from({ length: count }, () => [r(), r(), r(), r()]);
     const halo = new THREE.BufferGeometry();
     halo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(count * 3), 3));
-    return { body, eyes, rnd, halo };
-  }, [count, seed]);
+    return { body, eyes, glints, rnd, halo, dark };
+  }, [count, seed, eyeKind]);
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const X = V(1, 0, 0);
@@ -596,17 +630,22 @@ export const Swarm: React.FC<{ count: number; seed?: number; pose: SwarmPose; gl
     }
     sys.body.setMatrixAt(i, m4);
     sys.eyes.setMatrixAt(i, m4);
+    if (sys.dark) sys.glints.setMatrixAt(i, m4);
   }
   sys.body.instanceMatrix.needsUpdate = true;
   sys.eyes.instanceMatrix.needsUpdate = true;
+  sys.glints.instanceMatrix.needsUpdate = true;
   hp.needsUpdate = true;
   return (
     <group>
       <primitive object={sys.body} />
       <primitive object={sys.eyes} />
-      <points geometry={sys.halo} frustumCulled={false} renderOrder={9}>
-        <pointsMaterial map={softSprite()} size={0.22} transparent opacity={0.5 * glow} depthWrite={false} blending={THREE.AdditiveBlending} color="#c8ff4a" fog={false} />
-      </points>
+      {sys.dark && <primitive object={sys.glints} />}
+      {!sys.dark && (
+        <points geometry={sys.halo} frustumCulled={false} renderOrder={9}>
+          <pointsMaterial map={softSprite()} size={0.22} transparent opacity={0.5 * glow} depthWrite={false} blending={THREE.AdditiveBlending} color="#c8ff4a" fog={false} />
+        </points>
+      )}
     </group>
   );
 };

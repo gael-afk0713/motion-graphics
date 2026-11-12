@@ -12,7 +12,14 @@ mexer na série. O briefing original do episódio 1 está em `docs/papagaio-ep1-
   que forma ilhas ("fábrica de ilhas", Maldivas >85%), à noite vêm parasitas (isópodes), o peixe-limpador dorme.
   Escolha final: **A = saco de dormir de baba** (casulo de muco) / **B = esconder numa fenda do coral**.
   Na parte 1 NÃO se mostra se o saco de baba funciona.
-- **Parte 2**: a opção mais votada (ainda não definida pelo usuário).
+- **Parte 2** (pronta, composição `Papagaio2`, `out/papagaio-parte2.mp4`, 58,2 s, código em `src/papagaio2/`): o
+  público votou **A** (saco de baba). Casulo de muco (`Cocoon.tsx`: película leitosa enrugada, fios e partículas,
+  grudada no fundo), parasitas quicando na BORDA da bolha, tela dividida 95% x 10%, bateria −2,5%, amanhecer,
+  fome. Isópodes da parte 2 com **olhos escuros grandes + ponto de brilho branco** (`eyes="dark"`; a parte 1
+  continua com olhos brilhantes). Escolha final: **A = recife de fora (ondas)** / **B = lagoa calma (perto da
+  ilha)**; uma delas deixa o peixe sem comida — a resposta é a parte 3. Cena 9: peixe amigo menor com plaquinha
+  "SEU AMIGO" nadando confuso entre os cartões + caixa de comentário genérica digitando "@".
+  Revisão: agente `revisor-viral` (`.claude/agents/`) deu 8,9/10 na prévia aprovada.
 - **Parte 3**: o peixe **muda de cor** para a fase terminal (azul/verde vivo, como o macho adulto da foto 2
   de referência). Até lá, use SÓ as cores da fase inicial.
 

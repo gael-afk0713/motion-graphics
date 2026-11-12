@@ -1,0 +1,685 @@
+{
+ "kit": 1,
+ "earshot": "0.4.1",
+ "bank": "forge_v2r6+forge04r1+fit1+pluck1",
+ "sr": 48000,
+ "name": "curiosario",
+ "roles": {
+  "whoosh.short": {
+   "sound": "whoosh_fast/tight",
+   "align": "peak",
+   "level_db": -6.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "whoosh-short_1.wav",
+     "seed": 1621782255,
+     "pitch": null,
+     "onset_s": 0.0485,
+     "peak_s": 0.1615,
+     "end_s": 0.365,
+     "dur_s": 0.5364,
+     "peak_db": -1.0,
+     "lufs_m_max": -16.68,
+     "sha1": "55e9c3b3a2221fad4d84bff6edd1954f8aa7a085",
+     "key": "57b3a173fbb3aedc83ab42de06a51ff45c41c0c6",
+     "checks": []
+    },
+    {
+     "file": "whoosh-short_2.wav",
+     "seed": 1621782256,
+     "pitch": null,
+     "onset_s": 0.0255,
+     "peak_s": 0.1575,
+     "end_s": 0.356,
+     "dur_s": 0.5314,
+     "peak_db": -1.0,
+     "lufs_m_max": -17.47,
+     "sha1": "b9f9aafbbaee4b6d72a8048b1a622e9ae8b23dcc",
+     "key": "1b7e401eb418fa174c27462423eb4146eabe7859",
+     "checks": []
+    },
+    {
+     "file": "whoosh-short_3.wav",
+     "seed": 1621782257,
+     "pitch": null,
+     "onset_s": 0.054,
+     "peak_s": 0.1605,
+     "end_s": 0.363,
+     "dur_s": 0.5314,
+     "peak_db": -1.0,
+     "lufs_m_max": -17.08,
+     "sha1": "21b34cd2b7fd34bc7a77efd0e1b74838a555c51e",
+     "key": "b4e766df952bf0b30f9a28c9059abffc2528377e",
+     "checks": []
+    },
+    {
+     "file": "whoosh-short_4.wav",
+     "seed": 1621782258,
+     "pitch": null,
+     "onset_s": 0.0588,
+     "peak_s": 0.1605,
+     "end_s": 0.36,
+     "dur_s": 0.5264,
+     "peak_db": -1.0,
+     "lufs_m_max": -16.6,
+     "sha1": "235368b839eda93a3deeae85139f84df5d05839b",
+     "key": "a70d7a0d76c30d2320d1d6109a19be781ab911fd",
+     "checks": []
+    }
+   ]
+  },
+  "whoosh.long": {
+   "sound": "pro_whoosh_big/swell",
+   "align": "peak",
+   "level_db": -6.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "whoosh-long_1.wav",
+     "seed": 1659809102,
+     "pitch": null,
+     "onset_s": 0.052,
+     "peak_s": 0.3545,
+     "end_s": 0.746,
+     "dur_s": 0.8053,
+     "peak_db": -1.0,
+     "lufs_m_max": -13.81,
+     "sha1": "698d39d16870f32a187019b4f2402faa207ed21f",
+     "key": "2fa4f49f1ce605c87a4af7941a804df711b188e6",
+     "checks": []
+    },
+    {
+     "file": "whoosh-long_2.wav",
+     "seed": 1659809103,
+     "pitch": null,
+     "onset_s": 0.0802,
+     "peak_s": 0.3855,
+     "end_s": 0.677,
+     "dur_s": 0.8053,
+     "peak_db": -1.0,
+     "lufs_m_max": -16.73,
+     "sha1": "ba7783ec52dca568c7e892c16ca5db94c2b79469",
+     "key": "50827e33517caec26f85d58dbcf9c08e340f5659",
+     "checks": []
+    }
+   ]
+  },
+  "pop": {
+   "sound": "ui_pop/boop",
+   "align": "onset",
+   "level_db": -6.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "pop_1.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0002,
+     "peak_s": 0.0275,
+     "end_s": 0.168,
+     "dur_s": 0.1949,
+     "peak_db": -1.0,
+     "lufs_m_max": -18.62,
+     "sha1": "2747c699b96088a60c4f6834c13ed7f1a15b9af9",
+     "key": "05ee6a5a965945b897be7da3e4933e8cfd9ca52b",
+     "checks": []
+    },
+    {
+     "file": "pop_2.wav",
+     "seed": 2,
+     "pitch": null,
+     "onset_s": 0.0002,
+     "peak_s": 0.0305,
+     "end_s": 0.152,
+     "dur_s": 0.1919,
+     "peak_db": -1.0,
+     "lufs_m_max": -17.94,
+     "sha1": "7a7ba6fc70443035f54323c6e2722453dff27779",
+     "key": "4242025ff8f44619586c61e4a211116b74e3701f",
+     "checks": []
+    },
+    {
+     "file": "pop_3.wav",
+     "seed": 3,
+     "pitch": null,
+     "onset_s": 0.0002,
+     "peak_s": 0.0275,
+     "end_s": 0.154,
+     "dur_s": 0.1757,
+     "peak_db": -1.0,
+     "lufs_m_max": -18.13,
+     "sha1": "b0838a6b238e192ed5660fca6d30c36043fff70b",
+     "key": "a13d81f0f997f38a1f033dadcc070abdcaa95e82",
+     "checks": []
+    },
+    {
+     "file": "pop_4.wav",
+     "seed": 4,
+     "pitch": null,
+     "onset_s": 0.0005,
+     "peak_s": 0.0285,
+     "end_s": 0.16,
+     "dur_s": 0.192,
+     "peak_db": -1.0,
+     "lufs_m_max": -18.42,
+     "sha1": "ec8418afe1ddf4f3acbd601c384c3170787e31ff",
+     "key": "a094622c017a1cdb457eca563426827b35634979",
+     "checks": []
+    }
+   ]
+  },
+  "hit": {
+   "sound": "cut_hit/punch",
+   "align": "onset",
+   "level_db": -3.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "hit_1.wav",
+     "seed": 4103,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0575,
+     "end_s": 0.278,
+     "dur_s": 0.2823,
+     "peak_db": -1.0,
+     "lufs_m_max": -15.46,
+     "sha1": "5a95d4d32e722b885abe6a8302b6462a7cd20b6a",
+     "key": "f20d0ab61dcd6e8aca121fbd16c13362354bce84",
+     "checks": []
+    },
+    {
+     "file": "hit_2.wav",
+     "seed": 4104,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0575,
+     "end_s": 0.279,
+     "dur_s": 0.2823,
+     "peak_db": -1.0,
+     "lufs_m_max": -15.14,
+     "sha1": "17bb82268ffbdb063c657de79504a41102c7666b",
+     "key": "5b6c485f394ce755ceb0705384fbdb90d7c50e6f",
+     "checks": []
+    }
+   ]
+  },
+  "crack": {
+   "sound": "knock/wood",
+   "align": "onset",
+   "level_db": -4.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "crack_1.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0122,
+     "peak_s": 0.0155,
+     "end_s": 0.13,
+     "dur_s": 0.1536,
+     "peak_db": -1.0,
+     "lufs_m_max": -22.85,
+     "sha1": "2861784ac363d0eb4b4934b9be9e1acf26057e33",
+     "key": "574364f3810498d3b3906e06bbe6d6e69874cd25",
+     "checks": []
+    },
+    {
+     "file": "crack_2.wav",
+     "seed": 2,
+     "pitch": null,
+     "onset_s": 0.0122,
+     "peak_s": 0.0165,
+     "end_s": 0.14,
+     "dur_s": 0.163,
+     "peak_db": -1.0,
+     "lufs_m_max": -19.46,
+     "sha1": "fa7937120ca40ffde3f6e91947cb0c21bbab13b7",
+     "key": "779649261652d76ffe4a3e39ed0395943610e32d",
+     "checks": []
+    },
+    {
+     "file": "crack_3.wav",
+     "seed": 3,
+     "pitch": null,
+     "onset_s": 0.0122,
+     "peak_s": 0.0165,
+     "end_s": 0.137,
+     "dur_s": 0.1556,
+     "peak_db": -1.0,
+     "lufs_m_max": -22.89,
+     "sha1": "e2791f69758287a58da43172c12badc4c083ea47",
+     "key": "88140f8528380ed22bab131478c6e6a98c0873bd",
+     "checks": []
+    }
+   ]
+  },
+  "clank": {
+   "sound": "tap/knuckle",
+   "align": "onset",
+   "level_db": -4.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "clank_1.wav",
+     "seed": 1826701615,
+     "pitch": null,
+     "onset_s": 0.0012,
+     "peak_s": 0.0055,
+     "end_s": 0.13,
+     "dur_s": 0.152,
+     "peak_db": -1.0,
+     "lufs_m_max": -21.09,
+     "sha1": "48ed6a571652341c1b793d1d73bb7e0239350664",
+     "key": "9fa83d0e342e882052fd78d9868d157becd8999a",
+     "checks": []
+    },
+    {
+     "file": "clank_2.wav",
+     "seed": 1826701616,
+     "pitch": null,
+     "onset_s": 0.0015,
+     "peak_s": 0.0085,
+     "end_s": 0.132,
+     "dur_s": 0.152,
+     "peak_db": -1.0,
+     "lufs_m_max": -20.16,
+     "sha1": "e73c6d1a2fada1ff6334c7ff2beac8136698651e",
+     "key": "199933da8b2174cd0dd0ed5d49cfbd818e6b4471",
+     "checks": []
+    }
+   ]
+  },
+  "drip": {
+   "sound": "drip/bubble",
+   "align": "onset",
+   "level_db": -8.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "drip_1.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0145,
+     "end_s": 0.241,
+     "dur_s": 0.2894,
+     "peak_db": -1.0,
+     "lufs_m_max": -15.05,
+     "sha1": "698193c2b74a910f80119a02587f02e7e110908b",
+     "key": "781335845fa0bf36e20cb2a4a3bf06edb019e444",
+     "checks": []
+    },
+    {
+     "file": "drip_2.wav",
+     "seed": 2,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0145,
+     "end_s": 0.223,
+     "dur_s": 0.2673,
+     "peak_db": -1.0,
+     "lufs_m_max": -15.69,
+     "sha1": "039d76d7c804077d70916ced17c96b22aec2dd84",
+     "key": "5f747813c14342b8ab689a244e7fdfe02e5730c8",
+     "checks": []
+    },
+    {
+     "file": "drip_3.wav",
+     "seed": 3,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0125,
+     "end_s": 0.235,
+     "dur_s": 0.2859,
+     "peak_db": -1.0,
+     "lufs_m_max": -15.53,
+     "sha1": "4f5bb718912da5ddf0eb9768eaab80d15cc4ea3c",
+     "key": "d4cdc9db51e940b77acbf38e091cdcbd0ba0adeb",
+     "checks": []
+    },
+    {
+     "file": "drip_4.wav",
+     "seed": 4,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0195,
+     "end_s": 0.262,
+     "dur_s": 0.3027,
+     "peak_db": -1.0,
+     "lufs_m_max": -15.04,
+     "sha1": "a66afb5f40e1585f3d5f2c97a8a098e8a6db320a",
+     "key": "14aa4a4e90f5a9f02fc3d8d5d75a4b43b065b375",
+     "checks": []
+    }
+   ]
+  },
+  "tick": {
+   "sound": "fit/tick/domino",
+   "align": "onset",
+   "level_db": -8.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "tick_1.wav",
+     "seed": 0,
+     "pitch": null,
+     "onset_s": 0.0042,
+     "peak_s": 0.0075,
+     "end_s": 0.077,
+     "dur_s": 0.139,
+     "peak_db": -1.0,
+     "lufs_m_max": -26.93,
+     "sha1": "4d1786ca6ae634199a237223fca71967eba90051",
+     "key": "965c17379c5e0fed285b1d26951e57055e3a0d12",
+     "checks": []
+    },
+    {
+     "file": "tick_2.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0045,
+     "peak_s": 0.0075,
+     "end_s": 0.078,
+     "dur_s": 0.139,
+     "peak_db": -1.0,
+     "lufs_m_max": -26.97,
+     "sha1": "0da067a76ea7ea7f55a60c12cafb8c12d792cf0a",
+     "key": "f3284bca8fc952945b869d94749452826ea0fd03",
+     "checks": []
+    },
+    {
+     "file": "tick_3.wav",
+     "seed": 2,
+     "pitch": null,
+     "onset_s": 0.0042,
+     "peak_s": 0.0075,
+     "end_s": 0.077,
+     "dur_s": 0.139,
+     "peak_db": -1.0,
+     "lufs_m_max": -26.89,
+     "sha1": "0460c85a06526273731d7bde71e1cab622eeca95",
+     "key": "e67a192dbac05d0744584ab8c06e13f2e49f7685",
+     "checks": []
+    }
+   ]
+  },
+  "success": {
+   "sound": "mallet/up4",
+   "align": "onset",
+   "level_db": -5.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "success_1.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.3355,
+     "end_s": 0.716,
+     "dur_s": 0.7486,
+     "peak_db": -1.0,
+     "lufs_m_max": -7.39,
+     "sha1": "5bce087c975e4f34c39de1a31c8e46e0403186c4",
+     "key": "8b2318a57591d6792ae4af2b2e91e4484dfa0a52",
+     "checks": []
+    }
+   ]
+  },
+  "bubblepop": {
+   "sound": "pro_pop/bloop",
+   "align": "onset",
+   "level_db": -6.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "bubblepop_1.wav",
+     "seed": 1000,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0065,
+     "end_s": 0.103,
+     "dur_s": 0.1303,
+     "peak_db": -1.0,
+     "lufs_m_max": -18.6,
+     "sha1": "a28cb6347e1085abd8219e784e679262f97acdf8",
+     "key": "356a67a7b48c37a225391de2af74080138103bcc",
+     "checks": [],
+     "planned_seed": 0
+    },
+    {
+     "file": "bubblepop_2.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0065,
+     "end_s": 0.109,
+     "dur_s": 0.1199,
+     "peak_db": -1.0,
+     "lufs_m_max": -18.84,
+     "sha1": "10a279faaaf34199c7ebb70a1a73513e010a87bb",
+     "key": "b176171c73056ba1bc9c8d34e4a3d0d69a68d27b",
+     "checks": []
+    },
+    {
+     "file": "bubblepop_3.wav",
+     "seed": 2002,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0055,
+     "end_s": 0.109,
+     "dur_s": 0.1226,
+     "peak_db": -1.0,
+     "lufs_m_max": -18.29,
+     "sha1": "eb0c1a7d170d516d759e8f08466f2fc13ed4a27c",
+     "key": "5e50c9394b137d0831d621c359cb6d2b0aa022a5",
+     "checks": [],
+     "planned_seed": 2
+    },
+    {
+     "file": "bubblepop_4.wav",
+     "seed": 3,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0055,
+     "end_s": 0.109,
+     "dur_s": 0.1223,
+     "peak_db": -1.0,
+     "lufs_m_max": -17.37,
+     "sha1": "f9a42b84ec473cc0d8f847fe6d0970a35d528ee5",
+     "key": "e46e9a28ce317602b9a2ae966141ae85e937824e",
+     "checks": []
+    }
+   ]
+  },
+  "thud": {
+   "sound": "tap/soft",
+   "align": "onset",
+   "level_db": -6.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "thud_1.wav",
+     "seed": 575199001,
+     "pitch": null,
+     "onset_s": 0.0012,
+     "peak_s": 0.0055,
+     "end_s": 0.096,
+     "dur_s": 0.1304,
+     "peak_db": -1.0,
+     "lufs_m_max": -21.3,
+     "sha1": "a0e2bf5badd24e0d9c020980b547b711e26bd6a7",
+     "key": "bf152cab4f76e19895897879517e6c888ccd50a1",
+     "checks": []
+    },
+    {
+     "file": "thud_2.wav",
+     "seed": 575199002,
+     "pitch": null,
+     "onset_s": 0.0012,
+     "peak_s": 0.0065,
+     "end_s": 0.113,
+     "dur_s": 0.1304,
+     "peak_db": -1.0,
+     "lufs_m_max": -20.78,
+     "sha1": "e5c7f4561c6ed5ffa213d83ed2eb979c191d36ab",
+     "key": "cc19c6a73075c32d56482e78d3541ff3ae684ac8",
+     "checks": []
+    },
+    {
+     "file": "thud_3.wav",
+     "seed": 575199003,
+     "pitch": null,
+     "onset_s": 0.0012,
+     "peak_s": 0.0095,
+     "end_s": 0.108,
+     "dur_s": 0.1304,
+     "peak_db": -1.0,
+     "lufs_m_max": -19.5,
+     "sha1": "25036635c3c05ade8acdb1fa295b4d1d7f7af24a",
+     "key": "aa89e3edfffa4a6b5a32481107e7603ad9e1d875",
+     "checks": []
+    }
+   ]
+  },
+  "beep": {
+   "sound": "ui_pop/blip",
+   "align": "onset",
+   "level_db": -8.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "beep_1.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0055,
+     "peak_s": 0.0165,
+     "end_s": 0.047,
+     "dur_s": 0.1177,
+     "peak_db": -1.0,
+     "lufs_m_max": -17.6,
+     "sha1": "35f9cdb4729c3f91649b01e04b13e9bf3c258dd5",
+     "key": "ce6c796577881d5d879638635872921091648c5c",
+     "checks": []
+    }
+   ]
+  },
+  "tension": {
+   "sound": "pro_logo_sting/swell_sting",
+   "align": "peak",
+   "level_db": -6.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "tension_1.wav",
+     "seed": 0,
+     "pitch": null,
+     "onset_s": 0.1635,
+     "peak_s": 0.4655,
+     "end_s": 1.22,
+     "dur_s": 1.3,
+     "peak_db": -1.0,
+     "lufs_m_max": -11.32,
+     "sha1": "04a63ded8ab4b203e7ce270640cdd28c1e36f474",
+     "key": "e90e307d0957ebdc4f3e62db2d037481f0eebf12",
+     "checks": []
+    }
+   ]
+  },
+  "beat": {
+   "sound": "sub_drop/punch",
+   "align": "onset",
+   "level_db": -5.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "beat_1.wav",
+     "seed": 1241873585,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0065,
+     "end_s": 0.391,
+     "dur_s": 0.4,
+     "peak_db": -1.0,
+     "lufs_m_max": -13.58,
+     "sha1": "182a8eb4817f3b0560d43566d1d9dd1184ef1537",
+     "key": "8ad0cab2daf0651ff1bf09e51992b9022beb7aed",
+     "checks": []
+    },
+    {
+     "file": "beat_2.wav",
+     "seed": 1241873586,
+     "pitch": null,
+     "onset_s": 0.0,
+     "peak_s": 0.0065,
+     "end_s": 0.391,
+     "dur_s": 0.4,
+     "peak_db": -1.0,
+     "lufs_m_max": -13.61,
+     "sha1": "dbce27919689c7d4e1d62355413947477693bdbe",
+     "key": "12aa3bafe3633f2c0488458381361a4d5fcdab4b",
+     "checks": []
+    }
+   ]
+  },
+  "key": {
+   "sound": "fit/key/thock",
+   "align": "onset",
+   "level_db": -4.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "key_1.wav",
+     "seed": 0,
+     "pitch": null,
+     "onset_s": 0.0048,
+     "peak_s": 0.0145,
+     "end_s": 0.31,
+     "dur_s": 0.4541,
+     "peak_db": -1.0,
+     "lufs_m_max": -26.41,
+     "sha1": "14ad7896afe2d9ae5729de09a43962c8f65cf4ff",
+     "key": "7a283b69938b5b191f814772b85a67c1e2cf69ff",
+     "checks": []
+    },
+    {
+     "file": "key_2.wav",
+     "seed": 1,
+     "pitch": null,
+     "onset_s": 0.0052,
+     "peak_s": 0.0145,
+     "end_s": 0.272,
+     "dur_s": 0.4543,
+     "peak_db": -1.0,
+     "lufs_m_max": -24.82,
+     "sha1": "91243256d12289272569a0e57059ef0c663c8312",
+     "key": "ee1bbac9ad62d0c4c69042d0df615c91709866b0",
+     "checks": []
+    }
+   ]
+  },
+  "dawn": {
+   "sound": "pro_shimmer/m0",
+   "align": "peak",
+   "level_db": -10.0,
+   "max_s": null,
+   "takes": [
+    {
+     "file": "dawn_1.wav",
+     "seed": 1826701615,
+     "pitch": null,
+     "onset_s": 0.1172,
+     "peak_s": 0.8525,
+     "end_s": 1.813,
+     "dur_s": 1.95,
+     "peak_db": -1.0,
+     "lufs_m_max": -12.55,
+     "sha1": "1b0f113a1d7be3fc0d1576a32038951f24d5d5e4",
+     "key": "5b7e70137cdba18b56b869ccd9033fb61d58fba6",
+     "checks": []
+    }
+   ]
+  }
+ }
+}

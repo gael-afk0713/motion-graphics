@@ -35,6 +35,24 @@ etapas de `scripts/galaxy_stages.py` (gera `src/components/galaxyStages.ts`).
 (no ambiente de nuvem, acrescente `--ignore-certificate-errors` para a fonte
 Silkscreen do Google Fonts carregar).
 
+## Transições — regra para todos os vídeos (a partir do Peixe-papagaio parte 2)
+- Chicote (blur lateral + whoosh) SÓ nas mudanças reais de cena/assunto. Máximo de 4 no vídeo inteiro.
+- Dentro da mesma cena (mesma frase ou mesmo assunto), troca de enquadramento é corte seco ou aproximação
+  suave da câmera: sem blur e sem whoosh.
+- Noite → amanhecer (e mudanças de luz parecidas): clarão suave com som suave, sem whoosh.
+- Nunca colocar transição no meio de uma frase: só no começo de uma fala nova.
+- Whoosh/pop de ENTRADA de elemento (rótulo gigante, cartão A/B) não é transição e continua valendo.
+
+## PC do usuário (Windows, RTX 3070) — o que muda em relação à nuvem
+- Em cada PowerShell: `. scripts\pc_env.ps1` (põe no PATH o earshot do venv `C:\Users\gaels\.earshot-venv`
+  e o ffmpeg completo do winget). `uv tool install` falhou aqui; o earshot foi instalado com pip num venv.
+  O ffmpeg do Remotion é reduzido (não decodifica para pipe): o earshot precisa do ffmpeg do winget.
+- Render: `--gl=angle` (GPU) — imagem igual ao swangle (diferença média 1,2/255) e ~5,5x mais rápido
+  (60 frames 1080x1920: 12 s vs 66 s). Não precisa de `--ignore-certificate-errors` nem proxy.
+- Tempos das palavras: faster-whisper large-v3 no venv `C:\Users\gaels\.whisper-venv`
+  (`scripts/papagaio2_words.py`, roda também a conferência legenda x narração).
+- Use `python` (não `python3`) e o `ffprobe` do winget.
+
 ## Efeitos sonoros com o earshot — OBRIGATÓRIO a partir do Peixe-papagaio parte 2
 Ferramenta: [earshot](https://github.com/Leonxlnx/earshot) (ouvidos para agentes; banco de 252 efeitos
 feitos em código, sem direitos autorais). Não sintetize mais efeitos à mão (whoosh, pop, impacto, bolhas,

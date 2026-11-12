@@ -14,6 +14,15 @@ import { DURATION as PAPAGAIO1_DURATION } from "./papagaio/timeline";
 import { PapagaioSfxStem, PapagaioVideo } from "./papagaio/PapagaioVideo";
 import { FishSheet } from "./papagaio/Scene3D";
 import { SfxDemo, SfxDemoStem } from "./sfxdemo/SfxDemo";
+import { DURATION as PAPAGAIO2_DURATION } from "./papagaio2/timeline";
+import { Papagaio2SfxStem, Papagaio2Video } from "./papagaio2/Papagaio2Video";
+
+// Peixe-papagaio, parte 2/3 (the audience chose A, the slime sleeping bag): scenes 1-9, then the ending
+const Papagaio2ComOutro: React.FC = () => (
+  <WithOutro contentFrames={PAPAGAIO2_DURATION}>
+    <Papagaio2Video />
+  </WithOutro>
+);
 import { DURATION as SFXDEMO_DURATION } from "./sfxdemo/sfx";
 
 // every video ends with the standard Curiosário ending (see CLAUDE.md)
@@ -88,6 +97,8 @@ export const RemotionRoot: React.FC = () => {
       />
       {/* effects only, for the SFX sync check (scripts/sfx_sync_check.py) */}
       <Composition id="Papagaio1Sfx" component={PapagaioSfxStem} durationInFrames={PAPAGAIO1_DURATION} fps={30} width={1080} height={1920} />
+      <Composition id="Papagaio2" component={Papagaio2ComOutro} durationInFrames={withOutroDuration(PAPAGAIO2_DURATION)} fps={30} width={1080} height={1920} />
+      <Composition id="Papagaio2Sfx" component={Papagaio2SfxStem} durationInFrames={PAPAGAIO2_DURATION} fps={30} width={1080} height={1920} />
       <Composition id="Papagaio1Peixe" component={FishSheet} durationInFrames={3} fps={30} width={1080} height={1920} />
       {/* test of the earshot SFX workflow (kit + sync check), not a channel video */}
       <Composition id="SfxSyncDemo" component={SfxDemo} durationInFrames={SFXDEMO_DURATION} fps={30} width={1080} height={1920} />

@@ -15,5 +15,21 @@
   "drip":         {"sound": "drip/bubble", "takes": 4, "align": "onset", "level_db": -8.0,
                    "note": "bubbles and water drops; no strong CLAP match for 'bubbles underwater', best of the drip family"},
   "tick":         {"sound": "fit/tick/domino", "takes": 3, "align": "onset", "level_db": -8.0,
-                   "note": "counters; rank 'a short clock tick for a number counter': plausible (z 2.9)"}
+                   "note": "counters; rank 'a short clock tick for a number counter': plausible (z 2.9)"},
+  "success":      {"sound": "mallet/up4", "takes": 1, "align": "onset", "level_db": -5.0,
+                   "note": "right answer; rank 'a short bright success chime for a correct answer': strong (z 4.0)"},
+  "bubblepop":    {"sound": "pro_pop/bloop", "takes": 4, "align": "onset", "level_db": -6.0,
+                   "note": "comment bubbles popping up; rank 'a round soft bubbly pop': strong (z 3.1)"},
+  "thud":         {"sound": "tap/soft", "takes": 3, "align": "onset", "level_db": -6.0,
+                   "note": "parasites bumping the mucus cocoon; rank 'a soft muffled thud...': plausible (z 2.6)"},
+  "beep":         {"sound": "ui_pop/blip", "takes": 1, "align": "onset", "level_db": -8.0,
+                   "note": "battery bar; rank 'a short electronic beep': plausible (z 2.7)"},
+  "tension":      {"sound": "pro_logo_sting/swell_sting", "takes": 1, "align": "peak", "level_db": -6.0,
+                   "note": "the red question mark; best of the bank for 'a short dark suspense tension sting' but no strong match (z 1.9)"},
+  "beat":         {"sound": "sub_drop/punch", "takes": 2, "align": "onset", "level_db": -5.0, "edits": {"dur": 0.4},
+                   "note": "tension heartbeat (cards pulsing in turn); rank 'a deep heartbeat thump for suspense': best of the bank (z 1.6, kick-drum like), cut to 0.4 s so the beats do not pile up"},
+  "key":          {"sound": "fit/key/thock", "takes": 2, "align": "onset", "level_db": -4.0,
+                   "note": "typing in the comment box; rank 'a single keyboard key press, typing': strong (z 4.8)"},
+  "dawn":         {"sound": "pro_shimmer/m0", "takes": 1, "align": "peak", "level_db": -10.0,
+                   "note": "soft flash night -> dawn (no whoosh); rank 'a soft gentle magical shimmer, sunrise': strong (z 3.3)"}
  }}

@@ -130,7 +130,7 @@ const waterMat = () =>
       }`,
   });
 
-export const AerialSet: React.FC<{ t: number; grow?: number; sand?: number }> = ({ t, grow = 0, sand = 0 }) => {
+export const AerialSet: React.FC<{ t: number; grow?: number; sand?: number; sway?: number; palmT?: number }> = ({ t, grow = 0, sand = 0, sway: swayAmp = 1, palmT }) => {
   const water = useMemo(waterMat, []);
   const R = ISLAND_R * (1 + 0.16 * grow);
   water.uniforms.uTime.value = t;
@@ -178,7 +178,7 @@ export const AerialSet: React.FC<{ t: number; grow?: number; sand?: number }> = 
       ))}
       {palms.map((pl) => {
         const g = palmGeo(pl.seed);
-        const sway = 0.04 * Math.sin(t * 1.7 + pl.seed);
+        const sway = 0.04 * swayAmp * Math.sin((palmT ?? t) * 1.7 + pl.seed);
         return (
           <group key={pl.seed} position={[pl.p.x, 0.75, pl.p.z]} scale={pl.s} rotation={[sway, 0, sway * 0.7]}>
             <mesh geometry={g.trunk} material={mats.trunk} />
