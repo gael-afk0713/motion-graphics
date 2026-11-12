@@ -9,7 +9,7 @@ import { bodyU, Fish, sideZ, VENT } from "../papagaio/Fish";
 import { alphaPoints, bubbleSprite, clamp, fbm3, memo, rng, softSprite, V } from "../papagaio/gfx";
 import { useAssets } from "../papagaio/Globe";
 import { AerialSet } from "../papagaio/Island";
-import { Coral, CoralField, Isopod, ReefEnv, rockGeometry, SandCloud, Swarm, SwarmPose } from "../papagaio/Reef";
+import { Coral, CoralField, darkEyes, darkMats, isopodGeo, ReefEnv, rockGeometry, SandCloud, Swarm, SwarmPose } from "../papagaio/Reef";
 import { bagPoint, Cocoon, Hit, SlimeOoze } from "./Cocoon";
 import {
   C1_ISLAND,
@@ -341,6 +341,51 @@ const MARKS = [
   flank(-0.5, -0.14),
 ];
 const markMat = () => memo("biteMark", () => new THREE.MeshStandardMaterial({ color: "#e0262f", roughness: 0.5, emissive: "#6a0008", emissiveIntensity: 0.5 }));
+
+/** outward normal of the fish's side at a flank point (fish space) */
+const flankNormal = (m: THREE.Vector3) => {
+  const u = bodyU(m.x);
+  const e = 0.004;
+  const dz = (sideZ(u, m.y + e) - sideZ(u, m.y - e)) / (2 * e);
+  const dzx = (sideZ(bodyU(m.x + e), m.y) - sideZ(bodyU(m.x - e), m.y)) / (2 * e);
+  return V(-dzx, -dz, 1).normalize();
+};
+/** a parasite feeding: head pushed into the skin, body tilted ~45 deg away from it (not lying flat),
+ *  slowly turning red and swelling with a light pulse (sucking). Same model as parte 2 (dark eyes). */
+const Feeding: React.FC<{ at: THREE.Vector3; i: number; e: number; f: number }> = ({ at, i, e, f }) => {
+  const n = flankNormal(at);
+  // tilt towards the tail (or the head, alternating) so they do not all look the same
+  const along = V(i % 2 ? 1 : -1, (i % 3) * 0.3 - 0.3, 0);
+  const tang = along.sub(n.clone().multiplyScalar(along.dot(n))).normalize();
+  const d = n.clone().multiplyScalar(-Math.SQRT1_2).addScaledVector(tang, Math.SQRT1_2).normalize(); // head direction
+  const y = n.clone().sub(d.clone().multiplyScalar(n.dot(d))).normalize(); // back away from the skin
+  const z = new THREE.Vector3().crossVectors(d, y);
+  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, y, z));
+  const s = 0.25;
+  const pos = at.clone().addScaledVector(n, -0.012).addScaledVector(d, -0.44 * s);
+  const swell = 1 + 0.38 * e;
+  const pulse = 1 + 0.07 * e * Math.sin(f * 0.55 + i * 1.7);
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.35 }), []);
+  mat.color.set("#e8d6b4").lerp(new THREE.Color("#b5202c"), e * 0.85);
+  mat.emissive.set("#6b5332").lerp(new THREE.Color("#4a0610"), e);
+  mat.emissiveIntensity = 0.55;
+  const g = isopodGeo();
+  const eyes = darkEyes();
+  const em = darkMats();
+  return (
+    <>
+      {/* small red dot on the skin, right under the head (no running blood) */}
+      <mesh position={at.clone().addScaledVector(n, 0.003)} quaternion={new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), n)} scale={[0.026, 0.026, 0.006]} material={markMat()}>
+        <sphereGeometry args={[1, 12, 8]} />
+      </mesh>
+      <group position={pos} quaternion={q} scale={s}>
+        <mesh geometry={g.body} material={mat} scale={[1 + 0.08 * e, swell * pulse, swell * pulse]} />
+        <mesh geometry={eyes.eyes} material={em.eyes} />
+        <mesh geometry={eyes.glints} material={em.glint} />
+      </group>
+    </>
+  );
+};
 const SplitHalf: React.FC<{ side: "L" | "R"; f: number }> = ({ side, f }) => {
   const t = f / FPS;
   const fp = V(0, 2.6 + 0.03 * Math.sin(f * 0.08), 0);
@@ -359,12 +404,16 @@ const SplitHalf: React.FC<{ side: "L" | "R"; f: number }> = ({ side, f }) => {
         <group position={fp}>
           <Fish t={t} swim={0.35} open={0.35} look={[0.4 * Math.sin(f * 0.3), 0.2]} worry={1} rim={1} />
           {MARKS.map((m, i) =>
-            i < n ? (
+            i < n || i < 5 ? (
               <group key={i}>
-                <mesh position={m.clone().add(V(0, 0, 0.004))} scale={[0.085, 0.065, 0.016]} material={markMat()}>
-                  <sphereGeometry args={[1, 12, 8]} />
-                </mesh>
-                {i < 5 && <Isopod eyes="dark" position={m.clone().add(V(0.03, 0.04, 0.06))} rotation={[0, 0.3 + i, 1.2]} scale={0.36} />}
+                {i < 5 ? (
+                  // a feeding parasite: redder and fuller through the scene
+                  <Feeding at={m} i={i} f={f} e={ip(F, S[3] + 4 + i * 5, C4_BACK - 4, 0, 1, Easing.inOut(Easing.quad))} />
+                ) : (
+                  <mesh position={m.clone().add(V(0, 0, 0.004))} scale={[0.085, 0.065, 0.016]} material={markMat()}>
+                    <sphereGeometry args={[1, 12, 8]} />
+                  </mesh>
+                )}
               </group>
             ) : null,
           )}

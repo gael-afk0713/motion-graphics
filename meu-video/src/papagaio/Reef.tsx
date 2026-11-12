@@ -557,7 +557,7 @@ const isoMats = () =>
 // parte 2: big dark eyes (as in the real photos) with a small white glint so they still read at night;
 // the rest of the model is the same as parte 1. eyes="glow" (default) keeps parte 1 unchanged.
 export type IsoEyes = "glow" | "dark";
-const darkEyes = () =>
+export const darkEyes = () =>
   memo("isopodDarkEyes", () => {
     const parts = [1, -1].map((sd) => {
       const e = new THREE.SphereGeometry(0.082, 12, 10);
@@ -571,7 +571,7 @@ const darkEyes = () =>
     });
     return { eyes: mergeGeometries(parts)!, glints: mergeGeometries(glints)! };
   });
-const darkMats = () =>
+export const darkMats = () =>
   memo("isoDarkMats", () => ({
     eyes: new THREE.MeshStandardMaterial({ color: "#0b0a0c", roughness: 0.15, metalness: 0.1 }),
     glint: new THREE.MeshBasicMaterial({ color: "#ffffff", fog: false }),
