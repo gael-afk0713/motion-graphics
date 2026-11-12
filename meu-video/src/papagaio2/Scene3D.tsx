@@ -5,7 +5,7 @@ import { ThreeCanvas } from "@remotion/three";
 import React, { useMemo } from "react";
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import * as THREE from "three";
-import { bodyU, Fish, sideZ, VENT } from "../papagaio/Fish";
+import { bodyBot, bodyTop, bodyU, Fish, sideZ, VENT } from "../papagaio/Fish";
 import { alphaPoints, bubbleSprite, clamp, fbm3, memo, rng, softSprite, V } from "../papagaio/gfx";
 import { useAssets } from "../papagaio/Globe";
 import { AerialSet } from "../papagaio/Island";
@@ -23,7 +23,6 @@ import {
   C3_HIT,
   C3_SIDE,
   C4_10,
-  C4_95,
   C4_ANGLE,
   C4_BACK,
   C5_OUT,
@@ -33,7 +32,6 @@ import {
   C7_A,
   C7_B,
   COUNT10_FRAMES,
-  COUNT95_FRAMES,
   DURATION,
   FPS,
   HITS,
@@ -350,43 +348,70 @@ const flankNormal = (m: THREE.Vector3) => {
   const dzx = (sideZ(bodyU(m.x + e), m.y) - sideZ(bodyU(m.x - e), m.y)) / (2 * e);
   return V(-dzx, -dz, 1).normalize();
 };
-/** a parasite feeding: head pushed into the skin, body tilted ~45 deg away from it (not lying flat),
- *  slowly turning red and swelling with a light pulse (sucking). Same model as parte 2 (dark eyes). */
-const Feeding: React.FC<{ at: THREE.Vector3; i: number; e: number; f: number }> = ({ at, i, e, f }) => {
-  const n = flankNormal(at);
-  // tilt towards the tail (or the head, alternating) so they do not all look the same
-  const along = V(i % 2 ? 1 : -1, (i % 3) * 0.3 - 0.3, 0);
-  const tang = along.sub(n.clone().multiplyScalar(along.dot(n))).normalize();
-  const d = n.clone().multiplyScalar(-Math.SQRT1_2).addScaledVector(tang, Math.SQRT1_2).normalize(); // head direction
-  const y = n.clone().sub(d.clone().multiplyScalar(n.dot(d))).normalize(); // back away from the skin
-  const z = new THREE.Vector3().crossVectors(d, y);
-  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, y, z));
-  const s = 0.25;
-  const pos = at.clone().addScaledVector(n, -0.012).addScaledVector(d, -0.44 * s);
-  const swell = 1 + 0.38 * e;
-  const pulse = 1 + 0.07 * e * Math.sin(f * 0.55 + i * 1.7);
+/** a point on the silhouette (top or bottom edge as the camera sees it) and its outward normal, in the x-y plane */
+const edgePoint = (x: number, top: boolean) => {
+  const f = (xx: number) => (top ? bodyTop(bodyU(xx)) : bodyBot(bodyU(xx)));
+  const e = 0.004;
+  const slope = (f(x + e) - f(x - e)) / (2 * e);
+  const n = top ? V(-slope, 1, 0) : V(slope, -1, 0);
+  return { p: V(x, f(x) + (top ? -0.008 : 0.008), 0.03), n: n.normalize() };
+};
+// the 5 parasites of the SEM BOLHA side: 3 on the outline (2 on the back, clear of the dorsal fin, 1 on the
+// belly between the pelvic and anal fins), in profile, head against the fish, body pointing out; 2 on the
+// side near the pectoral fin. tilt = how far the body leans from the outward normal; lean = which way.
+const FEEDERS = [
+  { ...edgePoint(0.62, true), tilt: 0.55, lean: -1 },
+  // back, behind the middle: just below the ridge on the camera side, in front of the dorsal fin
+  (() => {
+    const x = -0.42;
+    const y = bodyTop(bodyU(x)) - 0.045;
+    const p = V(x, y, sideZ(bodyU(x), y) - 0.004);
+    return { p, n: edgePoint(x, true).n.add(V(0, 0, 0.55)).normalize(), tilt: 0.5, lean: 1 };
+  })(),
+  { ...edgePoint(0.0, false), tilt: 0.55, lean: -1 },
+  { p: flank(0.1, 0.07), n: flankNormal(flank(0.1, 0.07)), tilt: 0.78, lean: -1 },
+  { p: flank(-0.12, -0.07), n: flankNormal(flank(-0.12, -0.07)), tilt: 0.78, lean: 1 },
+];
+const PARASITE_SCALE = 0.23; // ~1/8 of the body, ~1/10 of the whole fish with the tail fin (never smaller)
+/** a parasite feeding: head pushed against/into the skin, body pointing out, beige turning only slightly
+ *  pink-red through the scene, with a light pulse (sucking). Same model as parte 2 (dark eyes). A small red
+ *  dot under its head (at most 1/4 of its length), half hidden by it. No running blood. */
+const Feeding: React.FC<{ at: THREE.Vector3; n: THREE.Vector3; tilt: number; lean: number; i: number; e: number; f: number }> = ({ at, n, tilt, lean, i, e, f }) => {
+  const nn = n.clone().normalize();
+  // a direction along the surface, in the picture plane when possible (profile to the camera)
+  let tang = new THREE.Vector3(nn.y, -nn.x, 0);
+  if (tang.lengthSq() < 0.05) tang = V(1, 0, 0).sub(nn.clone().multiplyScalar(nn.x));
+  tang.normalize().multiplyScalar(lean);
+  const d = nn.clone().multiplyScalar(-Math.cos(tilt)).addScaledVector(tang, Math.sin(tilt)).normalize(); // head direction (into the skin)
+  let up = V(0, 0, 1).sub(d.clone().multiplyScalar(d.z));
+  if (up.lengthSq() < 0.05) up = nn.clone().sub(d.clone().multiplyScalar(nn.dot(d)));
+  up.normalize(); // its back faces the camera: seen in profile
+  const z = new THREE.Vector3().crossVectors(d, up);
+  const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(d, up, z));
+  const s = PARASITE_SCALE;
+  const pos = at.clone().addScaledVector(nn, -0.006).addScaledVector(d, -0.44 * s);
+  const swell = 1 + 0.16 * e;
+  const pulse = 1 + 0.06 * Math.sin(f * 0.55 + i * 1.7) * (0.4 + 0.6 * e);
   const mat = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.35 }), []);
-  mat.color.set("#e8d6b4").lerp(new THREE.Color("#b5202c"), e * 0.85);
-  mat.emissive.set("#6b5332").lerp(new THREE.Color("#4a0610"), e);
+  mat.color.set("#e8d6b4").lerp(new THREE.Color("#d9907f"), e * 0.75);
+  mat.emissive.set("#6b5332").lerp(new THREE.Color("#5c2a24"), e * 0.7);
   mat.emissiveIntensity = 0.55;
   const g = isopodGeo();
   const eyes = darkEyes();
   const em = darkMats();
   return (
     <>
-      {/* small red dot on the skin, right under the head (no running blood) */}
-      <mesh position={at.clone().addScaledVector(n, 0.003)} quaternion={new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), n)} scale={[0.026, 0.026, 0.006]} material={markMat()}>
+      <mesh position={at.clone().addScaledVector(nn, 0.002)} quaternion={new THREE.Quaternion().setFromUnitVectors(V(0, 0, 1), nn)} scale={[0.024, 0.024, 0.006]} material={markMat()}>
         <sphereGeometry args={[1, 12, 8]} />
       </mesh>
       <group position={pos} quaternion={q} scale={s}>
-        <mesh geometry={g.body} material={mat} scale={[1 + 0.08 * e, swell * pulse, swell * pulse]} />
+        <mesh geometry={g.body} material={mat} scale={[1 + 0.05 * e, swell * pulse, swell * pulse]} />
         <mesh geometry={eyes.eyes} material={em.eyes} />
         <mesh geometry={eyes.glints} material={em.glint} />
       </group>
     </>
   );
-};
-const SplitHalf: React.FC<{ side: "L" | "R"; f: number }> = ({ side, f }) => {
+};const SplitHalf: React.FC<{ side: "L" | "R"; f: number }> = ({ side, f }) => {
   const t = f / FPS;
   const fp = V(0, 2.6 + 0.03 * Math.sin(f * 0.08), 0);
   const F = f + S[3]; // absolute frame, for the cues
@@ -394,8 +419,7 @@ const SplitHalf: React.FC<{ side: "L" | "R"; f: number }> = ({ side, f }) => {
   const cam = second ? orbit(fp, 0.05 + (F - C4_ANGLE) * 0.002, 7.6, 0.3, V(-0.1, 0.15, 0), 40) : orbit(fp, 0.55 - f * 0.002, 8.2, 0.7, V(0.1, 0.2, 0), 40);
   cam.pos.add(drift(f, 0.03));
   if (side === "L") {
-    // no bag: parasites stuck on the flank, little red marks appear as the counter runs to 95
-    const n = Math.round(ip(F, C4_95 - 4, C4_95 + COUNT95_FRAMES, 0, MARKS.length, Easing.out(Easing.quad)));
+    // no bag: 5 parasites feeding (3 on the outline, 2 near the pectoral fin), slowly turning pinkish
     return (
       <>
         <Rig {...cam} />
@@ -403,20 +427,9 @@ const SplitHalf: React.FC<{ side: "L" | "R"; f: number }> = ({ side, f }) => {
         <CoralField x={0} />
         <group position={fp}>
           <Fish t={t} swim={0.35} open={0.35} look={[0.4 * Math.sin(f * 0.3), 0.2]} worry={1} rim={1} />
-          {MARKS.map((m, i) =>
-            i < n || i < 5 ? (
-              <group key={i}>
-                {i < 5 ? (
-                  // a feeding parasite: redder and fuller through the scene
-                  <Feeding at={m} i={i} f={f} e={ip(F, S[3] + 4 + i * 5, C4_BACK - 4, 0, 1, Easing.inOut(Easing.quad))} />
-                ) : (
-                  <mesh position={m.clone().add(V(0, 0, 0.004))} scale={[0.085, 0.065, 0.016]} material={markMat()}>
-                    <sphereGeometry args={[1, 12, 8]} />
-                  </mesh>
-                )}
-              </group>
-            ) : null,
-          )}
+          {FEEDERS.map((p, i) => (
+            <Feeding key={i} at={p.p} n={p.n} tilt={p.tilt} lean={p.lean} i={i} f={f} e={ip(F, S[3] + 4 + i * 5, C4_BACK - 4, 0, 1, Easing.inOut(Easing.quad))} />
+          ))}
         </group>
         <Swarm eyes="dark"
           count={14}
