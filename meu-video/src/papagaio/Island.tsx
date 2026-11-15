@@ -6,7 +6,7 @@ import { fbm3, memo, ribbon, rng, V } from "./gfx";
 export const ISLAND_R = 6;
 export const REEF_R = 20;
 
-const palmGeo = (seed: number) =>
+export const palmGeo = (seed: number) =>
   memo("palm" + seed, () => {
     const r = rng(seed * 7 + 2);
     const lean = V((r() - 0.5) * 1.6, 0, (r() - 0.5) * 1.6);
@@ -45,7 +45,7 @@ const palmGeo = (seed: number) =>
     return { trunk, fronds, top };
   });
 
-const islandGeo = () =>
+export const islandGeo = () =>
   memo("island", () => {
     const g = new THREE.CircleGeometry(1, 72, 0, Math.PI * 2);
     // rebuild as rings for a smooth dome
@@ -79,7 +79,7 @@ const islandGeo = () =>
     return out;
   });
 
-const waterMat = () =>
+export const waterMat = () =>
   new THREE.ShaderMaterial({
     uniforms: {
       uTime: { value: 0 },

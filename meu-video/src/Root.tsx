@@ -16,6 +16,15 @@ import { FishSheet } from "./papagaio/Scene3D";
 import { SfxDemo, SfxDemoStem } from "./sfxdemo/SfxDemo";
 import { DURATION as PAPAGAIO2_DURATION } from "./papagaio2/timeline";
 import { Papagaio2SfxStem, Papagaio2Video } from "./papagaio2/Papagaio2Video";
+import { DURATION as PAPAGAIO3_DURATION } from "./papagaio3/timeline";
+import { Papagaio3SfxStem, Papagaio3Video } from "./papagaio3/Papagaio3Video";
+
+// Peixe-papagaio, parte 3/3 (the audience chose B, the calm lagoon: the wrong one): scenes 1-8, then the ending
+const Papagaio3ComOutro: React.FC = () => (
+  <WithOutro contentFrames={PAPAGAIO3_DURATION}>
+    <Papagaio3Video />
+  </WithOutro>
+);
 
 // Peixe-papagaio, parte 2/3 (the audience chose A, the slime sleeping bag): scenes 1-9, then the ending
 const Papagaio2ComOutro: React.FC = () => (
@@ -99,6 +108,8 @@ export const RemotionRoot: React.FC = () => {
       <Composition id="Papagaio1Sfx" component={PapagaioSfxStem} durationInFrames={PAPAGAIO1_DURATION} fps={30} width={1080} height={1920} />
       <Composition id="Papagaio2" component={Papagaio2ComOutro} durationInFrames={withOutroDuration(PAPAGAIO2_DURATION)} fps={30} width={1080} height={1920} />
       <Composition id="Papagaio2Sfx" component={Papagaio2SfxStem} durationInFrames={PAPAGAIO2_DURATION} fps={30} width={1080} height={1920} />
+      <Composition id="Papagaio3" component={Papagaio3ComOutro} durationInFrames={withOutroDuration(PAPAGAIO3_DURATION)} fps={30} width={1080} height={1920} />
+      <Composition id="Papagaio3Sfx" component={Papagaio3SfxStem} durationInFrames={PAPAGAIO3_DURATION} fps={30} width={1080} height={1920} />
       <Composition id="Papagaio1Peixe" component={FishSheet} durationInFrames={3} fps={30} width={1080} height={1920} />
       {/* test of the earshot SFX workflow (kit + sync check), not a channel video */}
       <Composition id="SfxSyncDemo" component={SfxDemo} durationInFrames={SFXDEMO_DURATION} fps={30} width={1080} height={1920} />
