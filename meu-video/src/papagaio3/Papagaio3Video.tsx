@@ -1,7 +1,7 @@
 import { Audio } from "@remotion/media";
 import React from "react";
 import { AbsoluteFill, Sequence, staticFile } from "remotion";
-import { Badge, Battery, CallToAction, CameraLayer, Captions, Check, Foreground, Grade, Labels, Vote, YouArrow } from "./Overlays";
+import { Badge, Battery, CallToAction, CameraLayer, Captions, Check, Grade, Labels, Vote, YouArrow } from "./Overlays";
 import { Papagaio3Scene } from "./Scene3D";
 import { FX, SFX_DIR } from "./sfx";
 import { DURATION, FPS, S, SCENE_DURATIONS } from "./timeline";
@@ -37,7 +37,6 @@ export const Papagaio3Video: React.FC = () => (
   <AbsoluteFill style={{ backgroundColor: "#0b84ad" }}>
     <CameraLayer>
       <Papagaio3Scene />
-      <Foreground />
     </CameraLayer>
     <Grade />
     <Vote />
